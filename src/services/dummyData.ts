@@ -8,15 +8,15 @@ import {
 // ─── Users (for dummy login) ──────────────────────────────────────────────────
 
 export const DUMMY_USERS: User[] = [
-  { id: 'S001', name: 'Priya Sharma', email: 'priya@sis.edu', role: 'student' },
-  { id: 'F001', name: 'Dr. Ramesh Kumar', email: 'ramesh@sis.edu', role: 'faculty' },
-  { id: 'A001', name: 'Admin Singh', email: 'admin@sis.edu', role: 'admin' },
+  { id: 'S001', name: 'Rishita', email: 'rishita@sis.edu', role: 'student' },
+  { id: 'F001', name: 'Suraj', email: 'suraj@sis.edu', role: 'faculty' },
+  { id: 'A001', name: 'Mukesh', email: 'mukesh@sis.edu', role: 'admin' },
 ];
 
 export const DUMMY_CREDENTIALS: Record<string, string> = {
-  'priya@sis.edu': 'student123',
-  'ramesh@sis.edu': 'faculty123',
-  'admin@sis.edu': 'admin123',
+  'rishita@sis.edu': 'student123',
+  'suraj@sis.edu': 'faculty123',
+  'mukesh@sis.edu': 'admin123',
 };
 
 // ─── Departments ──────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ export const subjects: Subject[] = [
 // ─── Students ─────────────────────────────────────────────────────────────────
 
 export const students: Student[] = [
-  { id: 'S001', name: 'Priya Sharma', rollNo: 'CS21001', email: 'priya@sis.edu', phone: '9876543210', department: 'Computer Science', semester: 3, section: 'A', batch: '2021-25', dob: '2003-05-14', gender: 'Female', address: '12 MG Road, Pune', parentName: 'Rakesh Sharma', parentPhone: '9876543200' },
+  { id: 'S001', name: 'Rishita', rollNo: 'CS21001', email: 'rishita@sis.edu', phone: '9876543210', department: 'Computer Science', semester: 3, section: 'A', batch: '2021-25', dob: '2003-05-14', gender: 'Female', address: '12 MG Road, Pune', parentName: 'Rakesh Sharma', parentPhone: '9876543200' },
   { id: 'S002', name: 'Arjun Mehta', rollNo: 'CS21002', email: 'arjun@sis.edu', phone: '9876543211', department: 'Computer Science', semester: 3, section: 'A', batch: '2021-25', dob: '2003-08-22', gender: 'Male', address: '45 FC Road, Pune', parentName: 'Suresh Mehta', parentPhone: '9876543201' },
   { id: 'S003', name: 'Sneha Patil', rollNo: 'CS21003', email: 'sneha@sis.edu', phone: '9876543212', department: 'Computer Science', semester: 3, section: 'B', batch: '2021-25', dob: '2003-01-30', gender: 'Female', address: '7 Baner Road, Pune', parentName: 'Mohan Patil', parentPhone: '9876543202' },
   { id: 'S004', name: 'Rohan Gupta', rollNo: 'CS21004', email: 'rohan@sis.edu', phone: '9876543213', department: 'Computer Science', semester: 3, section: 'B', batch: '2021-25', dob: '2003-11-05', gender: 'Male', address: '3 Kothrud, Pune', parentName: 'Vikram Gupta', parentPhone: '9876543203' },
@@ -52,7 +52,7 @@ export const students: Student[] = [
 // ─── Faculty ──────────────────────────────────────────────────────────────────
 
 export const facultyList: Faculty[] = [
-  { id: 'F001', name: 'Dr. Ramesh Kumar', email: 'ramesh@sis.edu', phone: '9876000001', department: 'Computer Science', designation: 'Professor', experience: '15 years', subjects: ['Data Structures', 'Software Engineering'] },
+  { id: 'F001', name: 'Suraj', email: 'suraj@sis.edu', phone: '9876000001', department: 'Computer Science', designation: 'Professor', experience: '15 years', subjects: ['Data Structures', 'Software Engineering'] },
   { id: 'F002', name: 'Prof. Anita Nair', email: 'anita@sis.edu', phone: '9876000002', department: 'Computer Science', designation: 'Associate Professor', experience: '10 years', subjects: ['Database Management'] },
   { id: 'F003', name: 'Dr. Suresh Iyer', email: 'suresh@sis.edu', phone: '9876000003', department: 'Computer Science', designation: 'Assistant Professor', experience: '7 years', subjects: ['Operating Systems'] },
   { id: 'F004', name: 'Prof. Kavita Rao', email: 'kavita@sis.edu', phone: '9876000004', department: 'Electronics', designation: 'Associate Professor', experience: '12 years', subjects: ['Computer Networks'] },

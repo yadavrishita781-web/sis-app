@@ -1,95 +1,109 @@
-import { subjectAttendance, attendanceHistory } from '../../services/dummyData';
-import { StatusBadge } from '../../components/StatusBadge';
-import { formatDate, getAttendanceColor } from '../../utils';
+import { useMockDB } from '../../context/MockDB';
+import { getAttendanceColor } from '../../utils';
+import { CalendarCheck, AlertTriangle } from 'lucide-react';
 
 export function StudentAttendance() {
-  const overall = Math.round(subjectAttendance.reduce((s, a) => s + a.percentage, 0) / subjectAttendance.length);
+  const { state } = useMockDB();
+
+  const overall = state.subjectAttendance.length > 0
+    ? Math.round(state.subjectAttendance.reduce((s, a) => s + a.percentage, 0) / state.subjectAttendance.length)
+    : 0;
+
+  const atRisk = state.subjectAttendance.filter(sa => sa.percentage < 75);
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Attendance</h1>
+          <h1 className="page-title">Attendance Report</h1>
           <p className="page-subtitle">Track your attendance across all subjects</p>
         </div>
       </div>
 
-      {/* Overall */}
-      <div className="card bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-indigo-200 text-sm font-medium">Overall Attendance</p>
-            <p className="text-5xl font-bold mt-1">{overall}%</p>
-            <p className={`text-sm mt-2 font-medium ${overall >= 75 ? 'text-emerald-300' : 'text-red-300'}`}>
-              {overall >= 85 ? '✓ Excellent standing' : overall >= 75 ? '⚠ Adequate — maintain above 75%' : '✗ Below threshold — attend more classes!'}
-            </p>
-          </div>
-          <div className="relative h-24 w-24">
-            <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-              <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2.5" />
-              <circle
-                cx="18" cy="18" r="15.9" fill="none"
-                stroke="white" strokeWidth="2.5"
-                strokeDasharray={`${overall} ${100 - overall}`}
-                strokeLinecap="round"
-              />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">{overall}%</span>
-          </div>
+      {/* Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="card text-center">
+          <div className={`text-5xl font-bold mb-1 ${getAttendanceColor(overall)}`}>{overall}%</div>
+          <p className="text-slate-500 text-sm">Overall Attendance</p>
+          {overall < 75 && <p className="text-red-500 text-xs mt-1 flex items-center justify-center gap-1"><AlertTriangle className="h-3 w-3" /> Below minimum</p>}
+        </div>
+        <div className="card text-center">
+          <div className="text-4xl font-bold text-emerald-600 mb-1">{state.subjectAttendance.filter(a => a.percentage >= 75).length}</div>
+          <p className="text-slate-500 text-sm">Subjects on Track</p>
+        </div>
+        <div className="card text-center">
+          <div className="text-4xl font-bold text-red-500 mb-1">{atRisk.length}</div>
+          <p className="text-slate-500 text-sm">Subjects at Risk</p>
         </div>
       </div>
 
-      {/* Subject-wise */}
+      {atRisk.length > 0 && (
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <p className="font-semibold text-red-700 dark:text-red-400 text-sm">Attendance Alert</p>
+          </div>
+          <p className="text-red-600 dark:text-red-400 text-sm">
+            You are below 75% in: {atRisk.map(a => a.subjectName).join(', ')}. Immediate improvement required.
+          </p>
+        </div>
+      )}
+
+      {/* Per-subject */}
       <div className="card">
-        <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-4">Subject-wise Attendance</h2>
+        <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+          <CalendarCheck className="h-4 w-4 text-indigo-600" /> Subject-wise Attendance
+        </h2>
         <div className="space-y-4">
-          {subjectAttendance.map(sa => (
+          {state.subjectAttendance.map(sa => (
             <div key={sa.subjectId}>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{sa.subjectName}</span>
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="text-slate-500">{sa.present}/{sa.total} classes</span>
-                  <span className={`font-bold ${getAttendanceColor(sa.percentage)}`}>{sa.percentage}%</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <div>
+                  <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{sa.subjectName}</span>
+                  <span className="text-xs text-slate-400 ml-2">({sa.present}/{sa.total} classes)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {sa.percentage < 75 && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
+                  <span className={`text-sm font-bold ${getAttendanceColor(sa.percentage)}`}>{sa.percentage}%</span>
                 </div>
               </div>
-              <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${sa.percentage >= 85 ? 'bg-emerald-500' : sa.percentage >= 75 ? 'bg-amber-500' : 'bg-red-500'}`}
                   style={{ width: `${sa.percentage}%` }}
                 />
               </div>
-              {sa.percentage < 75 && (
-                <p className="text-xs text-red-500 mt-1">
-                  Need {Math.ceil((0.75 * sa.total - sa.present) / (1 - 0.75))} more classes to reach 75%
-                </p>
-              )}
+              <p className="text-xs text-slate-400 mt-1">
+                {sa.percentage < 75
+                  ? `Need ${Math.ceil((0.75 * sa.total - sa.present) / 0.25)} more classes to reach 75%`
+                  : `Can miss ${Math.floor((sa.present - 0.75 * sa.total) / 0.75)} more classes`
+                }
+              </p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* History */}
+      {/* Recent Records */}
       <div className="card">
-        <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-4">Attendance History</h2>
-        <div className="table-wrapper">
-          <table className="table-base">
-            <thead className="table-head">
-              <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Subject</th>
-                <th className="px-4 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-              {attendanceHistory.map(r => (
-                <tr key={r.id} className="table-row">
-                  <td className="table-cell">{formatDate(r.date)}</td>
-                  <td className="table-cell font-medium">{r.subjectName}</td>
-                  <td className="table-cell"><StatusBadge status={r.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-4">Recent Attendance Records</h2>
+        <div className="space-y-2 max-h-80 overflow-y-auto">
+          {state.attendanceRecords.filter(r => r.studentId === 'S001').slice().reverse().slice(0, 15).map(r => (
+            <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm">
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-slate-500 w-24">{r.date}</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">{r.subjectName}</span>
+              </div>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                r.status === 'present' ? 'bg-emerald-100 text-emerald-700' :
+                r.status === 'late' ? 'bg-amber-100 text-amber-700' :
+                'bg-red-100 text-red-700'
+              } capitalize`}>{r.status}</span>
+            </div>
+          ))}
+          {state.attendanceRecords.filter(r => r.studentId === 'S001').length === 0 && (
+            <p className="text-slate-400 text-center py-6">No attendance records yet</p>
+          )}
         </div>
       </div>
     </div>

@@ -1,15 +1,19 @@
 import { useState } from 'react';
-import { students } from '../../services/dummyData';
+import { useMockDB } from '../../context/MockDB';
+import { useAuth } from '../../hooks/useAuth';
 import { cn } from '../../utils';
 import { Save, CheckCircle } from 'lucide-react';
 
-const SUBJECTS = ['Data Structures', 'Software Engineering'];
-
 export function FacultyAttendance() {
-  const [subject, setSubject] = useState(SUBJECTS[0]);
+  const { state, markAttendance } = useMockDB();
+  const { user } = useAuth();
+  const [subject, setSubject] = useState(state.subjects[0]?.id || '');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendance, setAttendance] = useState<Record<string, 'present' | 'absent' | 'late'>>({});
   const [saved, setSaved] = useState(false);
+
+  const mySubjects = state.subjects.filter(s => s.facultyId === 'F001' || s.facultyName === user?.name);
+  const selectedSubject = state.subjects.find(s => s.id === subject);
 
   const toggleStatus = (id: string) => {
     setAttendance(prev => {
@@ -22,11 +26,21 @@ export function FacultyAttendance() {
   };
 
   const handleSave = () => {
+    const records = state.students.map(s => ({
+      studentId: s.id,
+      subjectId: subject,
+      subjectName: selectedSubject?.name || '',
+      date,
+      status: attendance[s.id] ?? 'absent',
+    }));
+    markAttendance(records);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   const present = Object.values(attendance).filter(v => v === 'present').length;
+  const late = Object.values(attendance).filter(v => v === 'late').length;
+  const absent = state.students.length - present - late;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -44,8 +58,8 @@ export function FacultyAttendance() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="label">Subject</label>
-            <select className="input" value={subject} onChange={e => setSubject(e.target.value)}>
-              {SUBJECTS.map(s => <option key={s}>{s}</option>)}
+            <select className="input" value={subject} onChange={e => { setSubject(e.target.value); setAttendance({}); }}>
+              {(mySubjects.length > 0 ? mySubjects : state.subjects).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div>
@@ -56,13 +70,19 @@ export function FacultyAttendance() {
 
         <div className="flex gap-6 text-sm mb-4">
           <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-emerald-500" />Present: {present}</span>
-          <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-red-500" />Absent: {students.length - present - Object.values(attendance).filter(v => v === 'late').length}</span>
-          <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-amber-500" />Late: {Object.values(attendance).filter(v => v === 'late').length}</span>
+          <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-red-500" />Absent: {absent}</span>
+          <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-amber-500" />Late: {late}</span>
+        </div>
+
+        <div className="flex gap-3 mb-4">
+          <button onClick={() => { const all: Record<string,any> = {}; state.students.forEach(s => { all[s.id] = 'present'; }); setAttendance(all); }} className="btn-secondary text-emerald-700 text-sm py-1.5">All Present</button>
+          <button onClick={() => { const all: Record<string,any> = {}; state.students.forEach(s => { all[s.id] = 'absent'; }); setAttendance(all); }} className="btn-secondary text-red-600 text-sm py-1.5">All Absent</button>
+          <button onClick={() => setAttendance({})} className="btn-secondary text-sm py-1.5">Reset</button>
         </div>
 
         <div className="space-y-2">
           <p className="text-xs text-slate-400 mb-3">Click to toggle: Absent → Present → Late → Absent</p>
-          {students.map(s => {
+          {state.students.map(s => {
             const status = attendance[s.id] ?? 'absent';
             return (
               <div key={s.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">

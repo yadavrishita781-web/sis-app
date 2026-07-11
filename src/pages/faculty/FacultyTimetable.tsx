@@ -1,4 +1,4 @@
-import { timetable } from '../../services/dummyData';
+import { useMockDB } from '../../context/MockDB';
 import { useAuth } from '../../hooks/useAuth';
 import { cn } from '../../utils';
 
@@ -7,12 +7,18 @@ const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '1
 const COLORS = [
   'bg-indigo-100 border-indigo-300 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300',
   'bg-emerald-100 border-emerald-300 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  'bg-purple-100 border-purple-300 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
 ];
 
 export function FacultyTimetable() {
+  const { state } = useMockDB();
   const { user } = useAuth();
-  const myTimetable = timetable.filter(t => t.facultyName === user?.name || t.facultyName === 'Dr. Ramesh Kumar'); // Fallback for dummy
-  
+
+  const myTimetable = state.timetable.filter(t =>
+    t.facultyName === user?.name || t.facultyName === 'Dr. Ramesh Kumar'
+  );
+
   const subjectColors: Record<string, string> = {};
   myTimetable.forEach(t => {
     if (!subjectColors[t.subjectId]) {

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { User } from '../types';
-import { DUMMY_USERS, DUMMY_CREDENTIALS } from '../services/dummyData';
+import { useMockDB } from '../context/MockDB';
 
 interface AuthContextType {
   user: User | null;
@@ -12,15 +12,16 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { state } = useMockDB();
   const [user, setUser] = useState<User | null>(() => {
     const stored = localStorage.getItem('sis_user');
     return stored ? JSON.parse(stored) : null;
   });
 
   const login = (email: string, password: string): boolean => {
-    const validPassword = DUMMY_CREDENTIALS[email];
+    const validPassword = state.credentials[email];
     if (!validPassword || validPassword !== password) return false;
-    const found = DUMMY_USERS.find(u => u.email === email);
+    const found = state.users.find(u => u.email === email);
     if (!found) return false;
     setUser(found);
     localStorage.setItem('sis_user', JSON.stringify(found));

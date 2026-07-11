@@ -1,23 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, GraduationCap, Loader2 } from 'lucide-react';
+import { GraduationCap, Loader2, BookOpen } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { useTheme } from '../hooks/useTheme';
-import { Moon, Sun } from 'lucide-react';
 
 const QUICK_LOGINS = [
-  { label: 'Student',  email: 'priya@sis.edu',  password: 'student123',  color: 'bg-indigo-600' },
-  { label: 'Faculty',  email: 'ramesh@sis.edu', password: 'faculty123',  color: 'bg-emerald-600' },
-  { label: 'Admin',    email: 'admin@sis.edu',  password: 'admin123',    color: 'bg-rose-600' },
+  { label: 'Student', email: 'rishita@sis.edu', password: 'student123' },
+  { label: 'Faculty', email: 'suraj@sis.edu', password: 'faculty123' },
+  { label: 'Admin', email: 'mukesh@sis.edu', password: 'admin123' },
 ];
 
 export function Login() {
   const { login } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -25,114 +21,128 @@ export function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    await new Promise(r => setTimeout(r, 500)); // simulate async
+    await new Promise(r => setTimeout(r, 500));
     const ok = login(email, password);
     setLoading(false);
-    if (!ok) { setError('Invalid email or password.'); return; }
+    if (!ok) { setError('Invalid username or password.'); return; }
     const user = JSON.parse(localStorage.getItem('sis_user') ?? '{}');
     navigate(`/${user.role}`, { replace: true });
   };
 
-  const quickLogin = (e: string, p: string) => {
-    setEmail(e);
-    setPassword(p);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background blobs */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-violet-600/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
-
-      {/* Theme toggle */}
-      <button
-        onClick={toggleTheme}
-        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
-      >
-        {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-      </button>
-
-      <div className="w-full max-w-md relative z-10 animate-slide-in">
+    <div className="min-h-screen bg-[#35524b] flex overflow-hidden font-sans">
+      
+      {/* Left side (White Curved Area) */}
+      <div className="hidden lg:flex lg:w-7/12 relative bg-white rounded-br-[15rem] p-12 flex-col justify-between shadow-2xl z-10">
+        
+        {/* Floating decorations */}
+        <div className="absolute top-20 left-40 w-16 h-16 bg-slate-100 rounded-full opacity-60 mix-blend-multiply blur-sm" />
+        <div className="absolute bottom-40 right-20 w-24 h-24 bg-slate-100 rounded-full opacity-60 mix-blend-multiply blur-sm" />
+        <div className="absolute top-1/2 left-20 w-12 h-12 bg-slate-100 rounded-full opacity-50 mix-blend-multiply blur-sm" />
+        
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg mb-4">
-            <GraduationCap className="h-8 w-8 text-white" />
+        <div className="flex items-center gap-4 relative z-10">
+          <div className="p-3 bg-white rounded-full shadow-lg ring-1 ring-slate-100 flex items-center justify-center text-[#35524b]">
+            <GraduationCap className="h-8 w-8" />
           </div>
-          <h1 className="text-3xl font-bold text-white">Student Portal</h1>
-          <p className="text-slate-400 mt-2 text-sm">Sign in to access your dashboard</p>
+          <div className="leading-tight">
+            <h2 className="text-[#35524b] font-bold text-xl tracking-tight uppercase">Institute of</h2>
+            <h2 className="text-[#35524b] font-bold text-xl tracking-tight uppercase">Technology</h2>
+          </div>
         </div>
 
-        {/* Quick login buttons */}
-        <div className="flex gap-2 mb-6">
-          {QUICK_LOGINS.map(q => (
-            <button
-              key={q.label}
-              onClick={() => quickLogin(q.email, q.password)}
-              className={`flex-1 py-2 rounded-lg text-white text-xs font-semibold ${q.color} hover:opacity-90 transition-opacity`}
-            >
-              {q.label}
-            </button>
-          ))}
+        {/* Center Illustration Area */}
+        <div className="relative z-10 flex-1 flex items-center justify-center">
+           <div className="w-96 h-96 relative">
+              {/* Central blob */}
+              <div className="absolute inset-0 bg-[#d8ece8] opacity-60 rounded-[40%_60%_70%_30%/40%_50%_60%_50%] animate-pulse-slow" />
+              {/* Illustration placeholder (using an icon for now as we don't have the image asset) */}
+              <div className="absolute inset-0 flex items-center justify-center flex-col">
+                <BookOpen className="w-48 h-48 text-[#35524b] opacity-90 drop-shadow-2xl mb-4" />
+                <h3 className="text-2xl font-semibold text-[#35524b]">Student Information System</h3>
+              </div>
+           </div>
         </div>
 
-        {/* Card */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-8 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Footer */}
+        <div className="relative z-10">
+          <p className="text-xs text-slate-500 font-medium">© 2026 Institute of Technology</p>
+          <p className="text-xs text-slate-400">Powered by Antigravity</p>
+        </div>
+      </div>
+
+      {/* Right side (Dark Green Login Form) */}
+      <div className="w-full lg:w-5/12 flex flex-col items-center justify-center p-8 relative z-0">
+        
+        <div className="w-full max-w-sm">
+          <h1 className="text-4xl font-semibold text-white mb-10 tracking-tight">Login</h1>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Email Address</label>
+              <label className="block text-sm text-slate-200 mb-2">Username</label>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                placeholder="you@sis.edu"
+                className="w-full px-5 py-3 rounded-full bg-black/20 text-white placeholder-slate-400 border border-transparent focus:border-[var(--primary)] focus:bg-black/30 focus:outline-none transition-all"
+                placeholder="Enter your username"
                 required
               />
             </div>
+            
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
-              <div className="relative">
-                <input
-                  type={showPwd ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all pr-12"
-                  placeholder="••••••••"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
-                >
-                  {showPwd ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+              <label className="block text-sm text-slate-200 mb-2">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full px-5 py-3 rounded-full bg-black/20 text-white placeholder-slate-400 border border-transparent focus:border-[var(--primary)] focus:bg-black/30 focus:outline-none transition-all"
+                placeholder="Enter your password"
+                required
+              />
+              <div className="flex justify-end mt-2">
+                <a href="#" className="text-xs text-[var(--primary)] hover:text-white transition-colors">Forgot Password?</a>
               </div>
             </div>
+
             {error && (
-              <p className="text-red-400 text-sm bg-red-500/10 px-4 py-2 rounded-lg border border-red-500/20">{error}</p>
+              <p className="text-red-400 text-sm text-center font-medium bg-red-500/10 py-2 rounded-lg">{error}</p>
             )}
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70"
+              className="w-full py-3.5 bg-[var(--primary)] hover:bg-[#5ca093] text-white font-semibold rounded-full transition-all duration-200 shadow-lg disabled:opacity-70 mt-4 flex justify-center items-center gap-2"
             >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading && <Loader2 className="h-5 w-5 animate-spin" />}
+              {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-white/10">
-            <p className="text-xs text-slate-400 text-center mb-3">Demo credentials</p>
-            <div className="space-y-1.5">
-              {QUICK_LOGINS.map(q => (
-                <div key={q.label} className="flex justify-between text-xs text-slate-400 font-mono">
-                  <span className="text-slate-300">{q.label}:</span>
-                  <span>{q.email} / {q.password}</span>
-                </div>
-              ))}
-            </div>
+          <div className="mt-6 text-center">
+            <p className="text-sm text-slate-300">
+              Don't have an account? <a href="#" className="text-[var(--primary)] hover:text-white transition-colors">Register Now</a>
+            </p>
           </div>
+
+          <div className="mt-16 text-center space-y-4">
+             <a href="#" className="text-xs text-[var(--primary)] hover:text-white transition-colors block">Terms and Services</a>
+             <p className="text-[10px] text-slate-400">Have a problem? Contact us at<br/><a href="#" className="text-[var(--primary)] hover:text-white">support@sis.edu</a></p>
+          </div>
+
+          {/* Quick Logins for demo purposes */}
+          <div className="mt-8 flex justify-center gap-2 opacity-50 hover:opacity-100 transition-opacity">
+            {QUICK_LOGINS.map(q => (
+              <button
+                key={q.label}
+                onClick={() => { setEmail(q.email); setPassword(q.password); }}
+                className="px-3 py-1 rounded-full bg-black/30 text-white text-[10px] uppercase font-bold tracking-wider hover:bg-black/50 transition-colors border border-white/10"
+              >
+                {q.label}
+              </button>
+            ))}
+          </div>
+
         </div>
       </div>
     </div>

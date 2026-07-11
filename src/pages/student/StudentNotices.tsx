@@ -1,52 +1,81 @@
-import { useState } from 'react';
-import { notices } from '../../services/dummyData';
-import { StatusBadge } from '../../components/StatusBadge';
+import { useMockDB } from '../../context/MockDB';
 import { formatDate } from '../../utils';
-import { cn } from '../../utils';
 import { Bell } from 'lucide-react';
+import { StatusBadge } from '../../components/StatusBadge';
+import { useState } from 'react';
+import { Modal } from '../../components/Modal';
+import { Notice } from '../../types';
 
 export function StudentNotices() {
+  const { state } = useMockDB();
   const [filter, setFilter] = useState<'all' | 'college' | 'department' | 'exam'>('all');
-  const filtered = filter === 'all' ? notices : notices.filter(n => n.type === filter);
+  const [preview, setPreview] = useState<Notice | null>(null);
+
+  const filtered = filter === 'all' ? state.notices : state.notices.filter(n => n.type === filter);
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Notices</h1>
-          <p className="page-subtitle">College & department announcements</p>
+          <h1 className="page-title">Notice Board</h1>
+          <p className="page-subtitle">Important announcements and notifications ({state.notices.length} notices)</p>
+        </div>
+        <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+          {(['all', 'college', 'department', 'exam'] as const).map(t => (
+            <button key={t} onClick={() => setFilter(t)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${filter === t ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>
+              {t}
+            </button>
+          ))}
         </div>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {(['all', 'college', 'department', 'exam'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={cn('px-4 py-2 rounded-full text-sm font-medium capitalize transition-all border',
-              filter === f ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-indigo-300'
-            )}>{f}</button>
-        ))}
-      </div>
+
       <div className="space-y-4">
-        {filtered.map(n => (
-          <div key={n.id} className="card hover:shadow-card-hover transition-shadow">
+        {filtered.length === 0 ? (
+          <div className="card text-center py-12"><p className="text-slate-400">No notices in this category</p></div>
+        ) : filtered.map(n => (
+          <div key={n.id} className="card hover:shadow-md transition-shadow cursor-pointer" onClick={() => setPreview(n)}>
             <div className="flex items-start gap-4">
-              <div className={cn('p-2.5 rounded-xl flex-shrink-0', n.priority === 'high' ? 'bg-red-100 dark:bg-red-900/30' : n.priority === 'medium' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-blue-100 dark:bg-blue-900/30')}>
-                <Bell className={cn('h-5 w-5', n.priority === 'high' ? 'text-red-600' : n.priority === 'medium' ? 'text-amber-600' : 'text-blue-600')} />
+              <div className={`mt-1 p-2 rounded-lg flex-shrink-0 ${
+                n.priority === 'high' ? 'bg-red-100 dark:bg-red-900/20' :
+                n.priority === 'medium' ? 'bg-amber-100 dark:bg-amber-900/20' :
+                'bg-slate-100 dark:bg-slate-700'
+              }`}>
+                <Bell className={`h-4 w-4 ${
+                  n.priority === 'high' ? 'text-red-600' :
+                  n.priority === 'medium' ? 'text-amber-600' :
+                  'text-slate-400'
+                }`} />
               </div>
-              <div className="flex-1">
-                <div className="flex items-start justify-between gap-2 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-semibold text-slate-800 dark:text-slate-200">{n.title}</h3>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <StatusBadge status={n.priority} />
-                    <span className="badge badge-gray capitalize">{n.type}</span>
-                  </div>
+                  <StatusBadge status={n.priority} />
+                  <span className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded-full capitalize text-slate-500">{n.type}</span>
                 </div>
-                <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">{n.content}</p>
-                <p className="text-xs text-slate-400 mt-3">{n.publishedBy} · {formatDate(n.publishedAt)}</p>
+                <p className="text-sm text-slate-500 mt-1 line-clamp-2">{n.content}</p>
+                <p className="text-xs text-slate-400 mt-2">{n.publishedBy} · {formatDate(n.publishedAt)}</p>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      <Modal open={!!preview} onClose={() => setPreview(null)} title={preview?.title || ''} size="lg"
+        footer={<button className="btn-secondary" onClick={() => setPreview(null)}>Close</button>}
+      >
+        {preview && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <StatusBadge status={preview.priority} />
+              <span className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded-full capitalize text-slate-500">{preview.type}</span>
+              <span className="text-xs text-slate-400">{formatDate(preview.publishedAt)}</span>
+            </div>
+            <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{preview.content}</p>
+            <p className="text-xs text-slate-400">Published by: {preview.publishedBy}</p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

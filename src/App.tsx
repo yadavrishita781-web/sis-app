@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
 import { ProtectedRoute } from './routes/ProtectedRoute';
+import { MockDBProvider } from './context/MockDB';
 
 // Layouts
 import { StudentLayout } from './layouts/StudentLayout';
@@ -33,6 +34,7 @@ import { FacultyMaterials } from './pages/faculty/FacultyMaterials';
 import { FacultyMarks } from './pages/faculty/FacultyMarks';
 import { FacultyTimetable } from './pages/faculty/FacultyTimetable';
 import { FacultyLeave } from './pages/faculty/FacultyLeave';
+import { FacultySettings } from './pages/faculty/FacultySettings';
 
 // Admin Pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
@@ -52,9 +54,10 @@ import { AdminSettings } from './pages/admin/AdminSettings';
 export default function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
+      <MockDBProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
 
@@ -86,6 +89,7 @@ export default function App() {
                 <Route path="marks" element={<FacultyMarks />} />
                 <Route path="timetable" element={<FacultyTimetable />} />
                 <Route path="leave" element={<FacultyLeave />} />
+                <Route path="settings" element={<FacultySettings />} />
               </Route>
             </Route>
 
@@ -110,8 +114,9 @@ export default function App() {
 
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+          </BrowserRouter>
+        </AuthProvider>
+      </MockDBProvider>
     </ThemeProvider>
   );
 }

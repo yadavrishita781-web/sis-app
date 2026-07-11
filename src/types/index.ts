@@ -94,12 +94,32 @@ export interface Assignment {
   title: string;
   subjectId: string;
   subjectName: string;
+  facultyId?: string;
   facultyName: string;
   dueDate: string;
   maxMarks: number;
   description: string;
   status: 'pending' | 'submitted' | 'graded' | 'late';
   submittedAt?: string;
+  marksObtained?: number;
+  feedback?: string;
+  fileUrl?: string;
+  fileName?: string;
+}
+
+// ─── Assignment Submission ────────────────────────────────────────────────────
+
+export interface Submission {
+  id: string;
+  assignmentId: string;
+  studentId: string;
+  studentName: string;
+  rollNo: string;
+  submittedAt: string;
+  fileName: string;
+  fileSize: string;
+  fileUrl: string;
+  status: 'submitted' | 'graded';
   marksObtained?: number;
   feedback?: string;
 }
@@ -111,14 +131,24 @@ export interface StudyMaterial {
   title: string;
   subjectId: string;
   subjectName: string;
-  type: 'pdf' | 'ppt' | 'video' | 'link';
+  type: 'pdf' | 'ppt' | 'docx' | 'zip' | 'video' | 'link';
   url: string;
   uploadedBy: string;
   uploadedAt: string;
   size?: string;
+  fileName?: string;
 }
 
-// ─── Results ─────────────────────────────────────────────────────────────────
+// ─── Marks / Results ─────────────────────────────────────────────────────────
+
+export interface MarkEntry {
+  studentId: string;
+  subjectId: string;
+  internalMarks?: number;
+  practicalMarks?: number;
+  externalMarks?: number;
+  published: boolean;
+}
 
 export interface SubjectResult {
   subjectId: string;
@@ -144,6 +174,7 @@ export interface SemesterResult {
 export interface FeeRecord {
   id: string;
   studentId: string;
+  studentName?: string;
   type: string;
   amount: number;
   status: 'paid' | 'pending' | 'overdue';
@@ -169,6 +200,7 @@ export interface Notice {
 export interface LeaveApplication {
   id: string;
   applicantId: string;
+  applicantName?: string;
   type: 'medical' | 'casual' | 'emergency';
   fromDate: string;
   toDate: string;
@@ -189,6 +221,19 @@ export interface TimetableSlot {
   subjectName: string;
   facultyName: string;
   room: string;
+  department?: string;
+  semester?: number;
+}
+
+// ─── Profile ─────────────────────────────────────────────────────────────────
+
+export interface Profile {
+  userId: string;
+  name: string;
+  phone: string;
+  address?: string;
+  avatar?: string;
+  password?: string;
 }
 
 // ─── Reports ─────────────────────────────────────────────────────────────────

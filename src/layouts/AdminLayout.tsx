@@ -27,9 +27,9 @@ const navItems: NavItem[] = [
 export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div className="flex h-screen bg-theme-sidebar overflow-hidden">
       <Sidebar items={navItems} open={sidebarOpen} onClose={() => setSidebarOpen(false)} role="admin" />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-theme-bg rounded-l-[2rem] shadow-2xl relative">
         <Navbar onMenuToggle={() => setSidebarOpen(o => !o)} />
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <Outlet />

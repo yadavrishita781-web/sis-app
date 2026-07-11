@@ -12,7 +12,7 @@ interface DashboardCardProps {
 }
 
 export function DashboardCard({
-  title, value, icon: Icon, trend, trendUp, colorClass = 'bg-indigo-500', subtitle
+  title, value, icon: Icon, trend, trendUp, colorClass = 'bg-[#35524b]', subtitle
 }: DashboardCardProps) {
   return (
     <div className="card hover:shadow-card-hover transition-shadow duration-200 animate-fade-in">

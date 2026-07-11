@@ -8,6 +8,15 @@ export default {
   theme: {
     extend: {
       colors: {
+        theme: {
+          bg: '#e8efec',
+          sidebar: '#35524b',
+          accent: '#d2a138',
+          'accent-hover': '#c29230',
+          card: '#ffffff',
+          text: '#2d3748',
+          muted: '#718096'
+        },
         primary: {
           50:  '#eef2ff',
           100: '#e0e7ff',
@@ -29,8 +38,8 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        card: '0 1px 3px 0 rgba(0,0,0,0.07), 0 1px 2px -1px rgba(0,0,0,0.07)',
-        'card-hover': '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)',
+        card: '0 4px 20px rgba(0, 0, 0, 0.05)',
+        'card-hover': '0 10px 25px rgba(0, 0, 0, 0.08)',
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-in-out',

@@ -1,9 +1,16 @@
-import { fees } from '../../services/dummyData';
+import { useMockDB } from '../../context/MockDB';
+import { useAuth } from '../../hooks/useAuth';
 import { StatusBadge } from '../../components/StatusBadge';
-import { formatDate, formatCurrency } from '../../utils';
+import { formatCurrency, formatDate } from '../../utils';
 import { Receipt } from 'lucide-react';
 
 export function StudentFees() {
+  const { state } = useMockDB();
+  const { user } = useAuth();
+
+  const studentId = user?.id || 'S001';
+  const fees = state.fees.filter(f => f.studentId === studentId);
+
   const paid = fees.filter(f => f.status === 'paid');
   const pending = fees.filter(f => f.status !== 'paid');
   const totalPaid = paid.reduce((s, f) => s + f.amount, 0);
@@ -18,7 +25,6 @@ export function StudentFees() {
         </div>
       </div>
 
-      {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="card bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800">
           <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Total Paid</p>
@@ -32,7 +38,6 @@ export function StudentFees() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="card">
         <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-4">All Fee Records</h2>
         <div className="table-wrapper">
@@ -48,19 +53,21 @@ export function StudentFees() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-              {fees.map(f => (
+              {fees.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-10 text-slate-400">No fee records</td></tr>
+              ) : fees.map(f => (
                 <tr key={f.id} className="table-row">
                   <td className="table-cell font-medium">{f.type}</td>
                   <td className="table-cell text-right font-semibold">{formatCurrency(f.amount)}</td>
                   <td className="table-cell">{formatDate(f.dueDate)}</td>
-                  <td className="table-cell">{f.paidDate ? formatDate(f.paidDate) : '-'}</td>
+                  <td className="table-cell">{f.paidDate ? formatDate(f.paidDate) : '–'}</td>
                   <td className="table-cell"><StatusBadge status={f.status} /></td>
                   <td className="table-cell">
                     {f.receiptNo ? (
                       <button className="flex items-center gap-1 text-indigo-600 hover:underline text-sm">
                         <Receipt className="h-3.5 w-3.5" /> {f.receiptNo}
                       </button>
-                    ) : '-'}
+                    ) : '–'}
                   </td>
                 </tr>
               ))}

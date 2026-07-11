@@ -1,24 +1,26 @@
 import { useState } from 'react';
-import { leaves } from '../../services/dummyData';
+import { useMockDB } from '../../context/MockDB';
+import { useAuth } from '../../hooks/useAuth';
+import { Modal } from '../../components/Modal';
+import { LeaveApplication } from '../../types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { formatDate } from '../../utils';
-import { Modal } from '../../components/Modal';
-import { Plus } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { Plus, CheckCircle, XCircle } from 'lucide-react';
 
 export function FacultyLeave() {
+  const { state, addLeave, updateLeaveStatus } = useMockDB();
   const { user } = useAuth();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ type: 'casual', from: '', to: '', reason: '' });
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ type: 'casual' as LeaveApplication['type'], from: '', to: '', reason: '' });
   const [submitted, setSubmitted] = useState(false);
-  
-  // Dummy: show only my own leaves
-  const myLeaves = leaves.filter(l => l.applicantId === user?.id || l.applicantId === 'F001');
+
+  const myLeaves = state.leaves.filter(l => l.applicantId === user?.id || l.applicantId === 'F001');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    addLeave({ applicantId: user?.id || 'F001', applicantName: user?.name, type: form.type, fromDate: form.from, toDate: form.to, reason: form.reason, status: 'pending' } as any);
     setSubmitted(true);
-    setTimeout(() => { setSubmitted(false); setModalOpen(false); }, 1500);
+    setTimeout(() => { setSubmitted(false); setModal(false); setForm({ type: 'casual', from: '', to: '', reason: '' }); }, 1200);
   };
 
   return (
@@ -28,9 +30,7 @@ export function FacultyLeave() {
           <h1 className="page-title">Leave Applications</h1>
           <p className="page-subtitle">Apply and track your leave requests</p>
         </div>
-        <button className="btn-primary" onClick={() => setModalOpen(true)}>
-          <Plus className="h-4 w-4" /> Apply Leave
-        </button>
+        <button className="btn-primary" onClick={() => setModal(true)}><Plus className="h-4 w-4" /> Apply Leave</button>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
@@ -61,7 +61,7 @@ export function FacultyLeave() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-              {myLeaves.length > 0 ? myLeaves.map(l => (
+              {myLeaves.map(l => (
                 <tr key={l.id} className="table-row">
                   <td className="table-cell capitalize font-medium">{l.type}</td>
                   <td className="table-cell">{formatDate(l.fromDate)}</td>
@@ -70,49 +70,30 @@ export function FacultyLeave() {
                   <td className="table-cell">{formatDate(l.appliedAt)}</td>
                   <td className="table-cell"><StatusBadge status={l.status} /></td>
                 </tr>
-              )) : (
-                <tr className="table-row">
-                   <td className="table-cell text-center text-slate-500" colSpan={6}>No leave applications found.</td>
-                </tr>
-              )}
+              ))}
+              {myLeaves.length === 0 && <tr><td colSpan={6} className="text-center py-10 text-slate-400">No leave applications yet</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Apply for Leave"
-        footer={
-          <>
-            <button className="btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-            <button form="leave-form" type="submit" className="btn-primary" disabled={submitted}>
-              {submitted ? 'Submitted!' : 'Submit Application'}
-            </button>
-          </>
-        }
+      <Modal open={modal} onClose={() => setModal(false)} title="Apply for Leave"
+        footer={<><button className="btn-secondary" onClick={() => setModal(false)}>Cancel</button><button form="leave-form" type="submit" className="btn-primary" disabled={submitted}>{submitted ? 'Submitted!' : 'Submit Application'}</button></>}
       >
         <form id="leave-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Leave Type</label>
-            <select className="input" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} required>
+            <select className="input" value={form.type} onChange={e => setForm({...form, type: e.target.value as any})}>
               <option value="casual">Casual Leave</option>
               <option value="medical">Medical Leave</option>
               <option value="emergency">Emergency Leave</option>
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">From Date</label>
-              <input type="date" className="input" value={form.from} onChange={e => setForm({ ...form, from: e.target.value })} required />
-            </div>
-            <div>
-              <label className="label">To Date</label>
-              <input type="date" className="input" value={form.to} onChange={e => setForm({ ...form, to: e.target.value })} required />
-            </div>
+            <div><label className="label">From Date</label><input type="date" className="input" value={form.from} onChange={e => setForm({...form, from: e.target.value})} required /></div>
+            <div><label className="label">To Date</label><input type="date" className="input" value={form.to} onChange={e => setForm({...form, to: e.target.value})} required /></div>
           </div>
-          <div>
-            <label className="label">Reason</label>
-            <textarea className="input resize-none" rows={3} value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} placeholder="Brief reason for leave..." required />
-          </div>
+          <div><label className="label">Reason</label><textarea className="input resize-none" rows={3} value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} required /></div>
         </form>
       </Modal>
     </div>

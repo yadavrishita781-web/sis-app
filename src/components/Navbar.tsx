@@ -24,7 +24,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
   const unread = notices.filter(n => n.priority === 'high').length;
 
   return (
-    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
+    <header className="h-16 bg-transparent flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30 pt-2">
       {/* Left */}
       <div className="flex items-center gap-3">
         <button
@@ -90,8 +90,8 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
             onClick={() => { setProfileOpen(o => !o); setNotifOpen(false); }}
             className="flex items-center gap-2 p-1.5 pl-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
-            <div className="h-7 w-7 rounded-full bg-indigo-600 flex items-center justify-center">
-              <span className="text-white text-xs font-semibold">
+            <div className="h-8 w-8 rounded-full bg-[#d2a138] flex items-center justify-center border border-white">
+              <span className="text-white text-xs font-bold">
                 {user?.name.charAt(0)}
               </span>
             </div>

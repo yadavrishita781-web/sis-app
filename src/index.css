@@ -6,28 +6,28 @@
 
 /* ─── CSS Variables / Design Tokens ────────────────────────────────────────── */
 :root {
-  --bg:           #f8fafc;
-  --bg-card:      #ffffff;
-  --bg-sidebar:   #0f172a;
-  --bg-sidebar-hover: rgba(255,255,255,0.08);
-  --text:         #0f172a;
-  --text-muted:   #64748b;
-  --border:       #e2e8f0;
-  --primary:      #4f46e5;
-  --primary-light:#e0e7ff;
-  --radius:       0.75rem;
+  --bg:           #f8faf9; /* Off-white for base so cards pop */
+  --bg-card:      #ffffff; /* White cards */
+  --bg-sidebar:   #35524b; /* Green */
+  --text:         #000000; /* Darkest possible font */
+  --text-muted:   #374151; /* Dark gray for muted */
+  --border:       #e5e7eb;
+  --primary:      #6daea1; /* Teal */
+  --primary-light:#d8ece8;
+  --radius:       1.5rem; /* much rounder */
 }
 
+/* Let's keep dark mode identical to light mode for now to force the theme, 
+   or slightly tweak the dark mode if the user enables it, but the theme is very specific */
 .dark {
-  --bg:           #0f172a;
-  --bg-card:      #1e293b;
-  --bg-sidebar:   #020617;
-  --bg-sidebar-hover: rgba(255,255,255,0.06);
-  --text:         #f1f5f9;
-  --text-muted:   #94a3b8;
-  --border:       #334155;
-  --primary:      #6366f1;
-  --primary-light:#1e1b4b;
+  --bg:           #111827; /* Dark grey */
+  --bg-card:      #1f2937; /* Slightly lighter dark grey */
+  --bg-sidebar:   #35524b; /* Same green */
+  --text:         #ffffff; /* White text */
+  --text-muted:   #d1d5db; /* Light gray for muted */
+  --border:       #4a5568;
+  --primary:      #6daea1;
+  --primary-light:#2c4f48;
 }
 
 /* ─── Base ──────────────────────────────────────────────────────────────────── */
@@ -50,55 +50,90 @@ body {
 /* ─── Utility Classes ────────────────────────────────────────────────────────── */
 @layer components {
   .card {
-    @apply bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-card p-6;
+    @apply bg-white dark:bg-slate-800 rounded-3xl border-0 shadow-card p-6 transition-shadow duration-200;
   }
   .btn-primary {
-    @apply bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-150 flex items-center gap-2;
+    @apply bg-[var(--primary)] hover:opacity-90 text-white font-semibold px-6 py-2.5 rounded-full transition-all duration-150 flex items-center gap-2 justify-center;
   }
   .btn-secondary {
-    @apply bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors duration-150 flex items-center gap-2;
+    @apply bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold px-6 py-2.5 rounded-full shadow-sm border border-slate-200 dark:border-slate-700 transition-all duration-150 flex items-center gap-2 justify-center;
   }
   .btn-danger {
-    @apply bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-150 flex items-center gap-2;
+    @apply bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-full transition-all duration-150 flex items-center gap-2 justify-center;
   }
   .input {
-    @apply w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-150;
+    @apply w-full px-4 py-2.5 rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-150;
   }
   .label {
-    @apply block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1;
+    @apply block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 ml-1;
   }
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
   }
   .badge-green  { @apply badge bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400; }
   .badge-red    { @apply badge bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400; }
   .badge-yellow { @apply badge bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400; }
   .badge-blue   { @apply badge bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400; }
-  .badge-indigo { @apply badge bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-400; }
+  .badge-indigo { @apply badge bg-[var(--primary)]/20 text-[var(--primary)] dark:bg-[var(--primary)]/20 dark:text-[var(--primary)]; }
   .badge-gray   { @apply badge bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300; }
   
   .table-wrapper {
-    @apply overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700;
+    @apply overflow-x-auto rounded-2xl border-0;
   }
   .table-base {
     @apply w-full text-sm text-left;
   }
   .table-head {
-    @apply bg-slate-50 dark:bg-slate-800/50 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider;
+    @apply text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider;
   }
   .table-row {
-    @apply border-t border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors;
+    @apply border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors;
+  }
+  .table-row:last-child {
+    @apply border-0;
   }
   .table-cell {
-    @apply px-4 py-3 text-slate-700 dark:text-slate-300;
+    @apply px-4 py-4 text-slate-700 dark:text-slate-300;
   }
   .page-header {
-    @apply mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4;
+    @apply mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4;
   }
   .page-title {
-    @apply text-2xl font-bold text-slate-900 dark:text-slate-100;
+    @apply text-3xl font-bold text-[#35524b] dark:text-slate-100;
   }
   .page-subtitle {
-    @apply text-sm text-slate-500 dark:text-slate-400 mt-0.5;
+    @apply text-sm text-slate-600 dark:text-slate-400 mt-1 font-medium;
+  }
+  
+  .nav-item-active {
+    position: relative;
+    background-color: var(--bg);
+    color: var(--primary);
+    border-top-left-radius: 2rem;
+    border-bottom-left-radius: 2rem;
+  }
+  
+  .nav-item-active::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    border-bottom-right-radius: 20px;
+    box-shadow: 5px 5px 0 5px var(--bg);
+    pointer-events: none;
+  }
+
+  .nav-item-active::after {
+    content: '';
+    position: absolute;
+    bottom: -20px;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    border-top-right-radius: 20px;
+    box-shadow: 5px -5px 0 5px var(--bg);
+    pointer-events: none;
   }
 }
