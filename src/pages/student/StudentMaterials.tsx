@@ -1,7 +1,8 @@
-import { useMockDB } from '../../context/MockDB';
-import { StudyMaterial } from '../../types';
+import { useQuery } from '@tanstack/react-query';
+import { materialService } from '../../services/materialService';
+import { academicService } from '../../services/academicService';
 import { formatDate } from '../../utils';
-import { FileText, Presentation, Video, Link as LinkIcon, Archive, Download, Eye } from 'lucide-react';
+import { FileText, Presentation, Video, Link as LinkIcon, Archive, Download, Eye, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { Modal } from '../../components/Modal';
 
@@ -18,13 +19,30 @@ const typeColors: Record<string, string> = {
 };
 
 export function StudentMaterials() {
-  const { state } = useMockDB();
   const [subject, setSubject] = useState('all');
-  const [preview, setPreview] = useState<StudyMaterial | null>(null);
+  const [preview, setPreview] = useState<any | null>(null);
+
+  const { data: materials = [], isLoading: loadingMaterials } = useQuery({
+    queryKey: ['materials'],
+    queryFn: () => materialService.getMaterials()
+  });
+
+  const { data: subjects = [], isLoading: loadingSubjects } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: () => academicService.getSubjects()
+  });
 
   const filtered = subject === 'all'
-    ? state.materials
-    : state.materials.filter(m => m.subjectId === subject);
+    ? materials
+    : materials.filter((m: any) => m.subjectId === subject || m.subject_id === subject);
+
+  if (loadingMaterials || loadingSubjects) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -35,7 +53,7 @@ export function StudentMaterials() {
         </div>
         <select className="input w-auto" value={subject} onChange={e => setSubject(e.target.value)}>
           <option value="all">All Subjects</option>
-          {state.subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
       </div>
 
@@ -44,9 +62,11 @@ export function StudentMaterials() {
           <div className="col-span-3 card text-center py-12">
             <p className="text-slate-400">No materials available for this subject</p>
           </div>
-        ) : filtered.map(m => {
+        ) : filtered.map((m: any) => {
           const Icon = typeIcons[m.type] || FileText;
           const colors = typeColors[m.type] || 'text-slate-400 bg-slate-100';
+          const subj = subjects.find((s: any) => s.id === m.subjectId || s.id === m.subject_id);
+          const fileUrl = m.fileUrl || m.url;
           return (
             <div key={m.id} className="card hover:shadow-md transition-shadow flex flex-col gap-3">
               <div className="flex items-start gap-3">
@@ -55,16 +75,16 @@ export function StudentMaterials() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm leading-tight">{m.title}</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{m.subjectName}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{m.subjectName || subj?.name}</p>
                 </div>
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>{m.uploadedBy}</span>
-                <span>{formatDate(m.uploadedAt)}{m.size ? ` · ${m.size}` : ''}</span>
+                <span>{m.uploadedBy || 'Faculty'}</span>
+                <span>{formatDate(m.uploadedAt || m.created_at)}{m.size ? ` · ${m.size}` : ''}</span>
               </div>
               <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
                 {m.type === 'link' ? (
-                  <a href={m.url} target="_blank" rel="noopener noreferrer" className="btn-primary text-xs py-1.5 flex-1 justify-center">
+                  <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="btn-primary text-xs py-1.5 flex-1 justify-center">
                     <LinkIcon className="h-3.5 w-3.5" /> Open Link
                   </a>
                 ) : (
@@ -72,8 +92,8 @@ export function StudentMaterials() {
                     <button onClick={() => setPreview(m)} className="btn-secondary text-xs py-1.5 flex-1 justify-center">
                       <Eye className="h-3.5 w-3.5" /> Preview
                     </button>
-                    {m.url && m.url !== '#' && (
-                      <a href={m.url} download={m.fileName || m.title} className="btn-primary text-xs py-1.5 flex-1 justify-center">
+                    {fileUrl && fileUrl !== '#' && (
+                      <a href={fileUrl} target="_blank" rel="noreferrer" download={m.fileName || m.title} className="btn-primary text-xs py-1.5 flex-1 justify-center">
                         <Download className="h-3.5 w-3.5" /> Download
                       </a>
                     )}
@@ -88,8 +108,8 @@ export function StudentMaterials() {
       {/* Preview modal */}
       <Modal open={!!preview} onClose={() => setPreview(null)} title={preview?.title || 'Preview'} size="lg"
         footer={<>
-          {preview?.url && preview.url !== '#' && (
-            <a href={preview.url} download={preview.fileName || preview.title} className="btn-primary flex items-center gap-2">
+          {(preview?.fileUrl || preview?.url) && (preview?.fileUrl !== '#' && preview?.url !== '#') && (
+            <a href={preview?.fileUrl || preview?.url} target="_blank" rel="noreferrer" download={preview.fileName || preview.title} className="btn-primary flex items-center gap-2">
               <Download className="h-4 w-4" /> Download
             </a>
           )}
@@ -99,9 +119,8 @@ export function StudentMaterials() {
         {preview && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><p className="text-xs text-slate-400">Subject</p><p className="font-medium">{preview.subjectName}</p></div>
+              <div><p className="text-xs text-slate-400">Subject</p><p className="font-medium">{preview.subjectName || subjects.find((s: any) => s.id === preview.subjectId || s.id === preview.subject_id)?.name}</p></div>
               <div><p className="text-xs text-slate-400">Type</p><p className="font-medium uppercase">{preview.type}</p></div>
-              <div><p className="text-xs text-slate-400">Uploaded By</p><p className="font-medium">{preview.uploadedBy}</p></div>
               <div><p className="text-xs text-slate-400">Size</p><p className="font-medium">{preview.size || '—'}</p></div>
             </div>
             <div className="p-6 bg-slate-50 dark:bg-slate-700 rounded-xl text-center">
@@ -115,3 +134,4 @@ export function StudentMaterials() {
     </div>
   );
 }
+

@@ -1,11 +1,14 @@
 import { useState, useRef } from 'react';
-import { useMockDB } from '../../context/MockDB';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { materialService } from '../../services/materialService';
+import { academicService } from '../../services/academicService';
+import { storageService } from '../../services/storageService';
 import { useAuth } from '../../hooks/useAuth';
 import { Modal } from '../../components/Modal';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { StudyMaterial } from '../../types';
 import { formatDate } from '../../utils';
-import { Plus, Pencil, Trash2, FileText, Presentation, Video, Link as LinkIcon, Download, Eye, Archive } from 'lucide-react';
+import { Plus, Trash2, FileText, Presentation, Video, Link as LinkIcon, Archive, Loader2, Download } from 'lucide-react';
 
 const typeIcons: Record<string, React.ElementType> = {
   pdf: FileText, ppt: Presentation, docx: FileText, zip: Archive, video: Video, link: LinkIcon,
@@ -19,50 +22,112 @@ const BLANK: Omit<StudyMaterial, 'id'> = {
 };
 
 export function FacultyMaterials() {
-  const { state, addMaterial, updateMaterial, deleteMaterial } = useMockDB();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [modal, setModal] = useState<'add' | 'edit' | 'preview' | null>(null);
-  const [selected, setSelected] = useState<StudyMaterial | null>(null);
-  const [form, setForm] = useState<Omit<StudyMaterial, 'id'>>(BLANK);
-  const [confirmDelete, setConfirmDelete] = useState<StudyMaterial | null>(null);
-  const [renameModal, setRenameModal] = useState<StudyMaterial | null>(null);
-  const [newTitle, setNewTitle] = useState('');
+  const [form, setForm] = useState<any>(BLANK);
+  const [confirmDelete, setConfirmDelete] = useState<any | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-  const myMaterials = state.materials.filter(m => m.uploadedBy === user?.name || state.materials.length > 0 && true);
+  const { data: materials = [], isLoading: loadingMaterials } = useQuery({
+    queryKey: ['materials'],
+    queryFn: () => materialService.getMaterials()
+  });
+
+  const { data: subjects = [], isLoading: loadingSubjects } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: () => academicService.getSubjects()
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => materialService.deleteMaterial(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['materials'] });
+      setConfirmDelete(null);
+    }
+  });
+
+  const myMaterials = materials;
 
   const openAdd = () => {
-    const firstSub = state.subjects[0];
-    setForm({ ...BLANK, uploadedBy: user?.name || 'Faculty', uploadedAt: new Date().toISOString().split('T')[0], subjectId: firstSub?.id || '', subjectName: firstSub?.name || '' });
+    const firstSub = subjects[0];
+    setForm({ 
+      ...BLANK, 
+      uploadedBy: user?.name || 'Faculty', 
+      uploadedAt: new Date().toISOString().split('T')[0], 
+      subjectId: firstSub?.id || '',
+      subjectName: firstSub?.name || ''
+    });
+    setSelectedFile(null);
     setModal('add');
   };
-  const openEdit = (m: StudyMaterial) => { setSelected(m); setForm({ ...m }); setModal('edit'); };
 
   const handleSubjectChange = (subjectId: string) => {
-    const sub = state.subjects.find(s => s.id === subjectId);
-    setForm(prev => ({ ...prev, subjectId, subjectName: sub?.name || '' }));
+    const sub = subjects.find((s: any) => s.id === subjectId);
+    setForm((prev: any) => ({ ...prev, subjectId, subjectName: sub?.name || '' }));
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedFile(file);
     const ext = file.name.split('.').pop()?.toLowerCase() || 'pdf';
     const type = ['pdf','ppt','docx','zip','mp4'].includes(ext) ? (ext === 'mp4' ? 'video' : ext) : 'pdf';
-    const url = URL.createObjectURL(file);
-    setForm(prev => ({ ...prev, fileName: file.name, url, type: type as StudyMaterial['type'], size: (file.size / 1024).toFixed(0) + ' KB' }));
+    setForm((prev: any) => ({ 
+      ...prev, 
+      fileName: file.name, 
+      type: type as StudyMaterial['type'], 
+      size: (file.size / 1024).toFixed(0) + ' KB' 
+    }));
   };
 
-  const handleSave = () => {
-    if (modal === 'add') addMaterial(form);
-    else if (modal === 'edit' && selected) updateMaterial({ ...form, id: selected.id });
-    setModal(null);
+  const createMutation = useMutation({
+    mutationFn: (data: any) => materialService.createMaterial(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['materials'] });
+      setModal(null);
+    }
+  });
+
+  const handleSave = async () => {
+    if (modal === 'add') {
+      try {
+        setUploading(true);
+        let fileUrl = '';
+        if (selectedFile) {
+          fileUrl = await storageService.uploadFile(`materials/${form.subjectId}/${Date.now()}_${selectedFile.name}`, selectedFile);
+        }
+
+        await createMutation.mutateAsync({
+          title: form.title,
+          subjectId: form.subjectId,
+          subjectName: form.subjectName || subjects.find((s: any) => s.id === form.subjectId)?.name || '',
+          type: form.type || 'pdf',
+          fileUrl,
+          url: fileUrl,
+          fileName: selectedFile?.name || form.fileName || '',
+          size: form.size || '1.2 MB',
+          uploadedBy: user?.name || 'Faculty Member',
+          uploadedAt: new Date().toISOString()
+        });
+      } catch (err: any) {
+        alert(err.message || 'Failed to upload material');
+      } finally {
+        setUploading(false);
+      }
+    }
   };
 
-  const handleRename = () => {
-    if (renameModal) updateMaterial({ ...renameModal, title: newTitle });
-    setRenameModal(null);
-  };
+  if (loadingMaterials || loadingSubjects) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -90,9 +155,11 @@ export function FacultyMaterials() {
             <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
               {myMaterials.length === 0 ? (
                 <tr><td colSpan={6} className="text-center py-10 text-slate-400">No materials uploaded yet.</td></tr>
-              ) : myMaterials.map(m => {
+              ) : myMaterials.map((m: any) => {
                 const Icon = typeIcons[m.type] || FileText;
                 const iconColor = typeColors[m.type] || 'text-slate-400';
+                const subject = subjects.find((s: any) => s.id === m.subjectId || s.id === m.subject_id);
+                const fileUrl = m.fileUrl || m.url;
                 return (
                   <tr key={m.id} className="table-row">
                     <td className="table-cell">
@@ -101,28 +168,17 @@ export function FacultyMaterials() {
                         <span className="font-medium">{m.title}</span>
                       </div>
                     </td>
-                    <td className="table-cell">{m.subjectName}</td>
+                    <td className="table-cell">{m.subjectName || m.subject_name || subject?.name}</td>
                     <td className="table-cell uppercase text-xs font-semibold text-slate-500">{m.type}</td>
                     <td className="table-cell">{m.size ?? '–'}</td>
-                    <td className="table-cell">{formatDate(m.uploadedAt)}</td>
+                    <td className="table-cell">{formatDate(m.uploadedAt || m.uploaded_at)}</td>
                     <td className="table-cell">
                       <div className="flex items-center gap-1">
-                        {m.url && m.url !== '#' && (
-                          <>
-                            <button onClick={() => { setSelected(m); setModal('preview'); }} title="Preview" className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                              <Eye className="h-4 w-4 text-slate-500" />
-                            </button>
-                            <a href={m.url} download={m.fileName || m.title} title="Download" className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-indigo-600">
-                              <Download className="h-4 w-4" />
-                            </a>
-                          </>
+                        {fileUrl && (
+                          <a href={fileUrl} target="_blank" rel="noreferrer" title="Download Material" className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg text-blue-600 transition-colors">
+                            <Download className="h-4 w-4" />
+                          </a>
                         )}
-                        <button title="Rename" onClick={() => { setRenameModal(m); setNewTitle(m.title); }} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                          <Pencil className="h-4 w-4 text-slate-500" />
-                        </button>
-                        <button title="Replace / Edit" onClick={() => openEdit(m)} className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-blue-500">
-                          <Plus className="h-4 w-4 rotate-45" />
-                        </button>
                         <button title="Delete" onClick={() => setConfirmDelete(m)} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </button>
@@ -136,9 +192,8 @@ export function FacultyMaterials() {
         </div>
       </div>
 
-      {/* Upload / Edit Modal */}
-      <Modal open={modal === 'add' || modal === 'edit'} onClose={() => setModal(null)} title={modal === 'add' ? 'Upload Study Material' : 'Edit Material'} size="lg"
-        footer={<><button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn-primary" onClick={handleSave}>{modal === 'add' ? 'Upload' : 'Save'}</button></>}
+      <Modal open={modal === 'add'} onClose={() => setModal(null)} title="Upload Study Material" size="lg"
+        footer={<><button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn-primary" onClick={handleSave} disabled={createMutation.isPending || uploading}>{uploading ? 'Uploading...' : 'Upload'}</button></>}
       >
         <div className="space-y-4">
           <div><label className="label">Title</label><input className="input" value={form.title} onChange={e => setForm({...form, title: e.target.value})} required /></div>
@@ -146,62 +201,21 @@ export function FacultyMaterials() {
             <label className="label">Subject</label>
             <select className="input" value={form.subjectId} onChange={e => handleSubjectChange(e.target.value)}>
               <option value="">Select subject</option>
-              {state.subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="label">Type</label>
-            <select className="input" value={form.type} onChange={e => setForm({...form, type: e.target.value as StudyMaterial['type']})}>
-              {['pdf','ppt','docx','zip','video','link'].map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
-            </select>
+            <label className="label">File</label>
+            <input ref={fileRef} type="file" accept=".pdf,.ppt,.pptx,.doc,.docx,.zip,.mp4" className="input py-2" onChange={handleFileSelect} />
+            {form.fileName && <p className="text-xs text-emerald-600 mt-1">✓ {form.fileName} ({form.size})</p>}
           </div>
-          {form.type === 'link' ? (
-            <div><label className="label">URL</label><input type="url" className="input" value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://..." /></div>
-          ) : (
-            <div>
-              <label className="label">File</label>
-              <input ref={fileRef} type="file" accept=".pdf,.ppt,.pptx,.doc,.docx,.zip,.mp4" className="input py-2" onChange={handleFileSelect} />
-              {form.fileName && <p className="text-xs text-emerald-600 mt-1">✓ {form.fileName} ({form.size})</p>}
-            </div>
-          )}
         </div>
       </Modal>
 
-      {/* Rename Modal */}
-      <Modal open={!!renameModal} onClose={() => setRenameModal(null)} title="Rename Material"
-        footer={<><button className="btn-secondary" onClick={() => setRenameModal(null)}>Cancel</button><button className="btn-primary" onClick={handleRename}>Rename</button></>}
-      >
-        <div><label className="label">New Title</label><input className="input" value={newTitle} onChange={e => setNewTitle(e.target.value)} /></div>
-      </Modal>
-
-      {/* Preview Modal */}
-      <Modal open={modal === 'preview'} onClose={() => setModal(null)} title={`Preview — ${selected?.title}`} size="lg"
-        footer={<><a href={selected?.url} download={selected?.fileName || selected?.title} className="btn-primary flex items-center gap-2"><Download className="h-4 w-4" /> Download</a><button className="btn-secondary" onClick={() => setModal(null)}>Close</button></>}
-      >
-        {selected && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><p className="text-xs text-slate-400">Title</p><p className="font-medium">{selected.title}</p></div>
-              <div><p className="text-xs text-slate-400">Type</p><p className="font-medium uppercase">{selected.type}</p></div>
-              <div><p className="text-xs text-slate-400">Subject</p><p className="font-medium">{selected.subjectName}</p></div>
-              <div><p className="text-xs text-slate-400">Size</p><p className="font-medium">{selected.size || '—'}</p></div>
-              <div><p className="text-xs text-slate-400">Uploaded By</p><p className="font-medium">{selected.uploadedBy}</p></div>
-              <div><p className="text-xs text-slate-400">Date</p><p className="font-medium">{formatDate(selected.uploadedAt)}</p></div>
-            </div>
-            {selected.type === 'link' ? (
-              <a href={selected.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline text-sm">{selected.url}</a>
-            ) : selected.url && selected.url !== '#' ? (
-              <div className="p-4 bg-slate-50 dark:bg-slate-700 rounded-lg text-center">
-                <p className="text-sm text-slate-500">File ready — click Download to save</p>
-                <p className="text-xs text-slate-400 mt-1">{selected.fileName}</p>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </Modal>
-
       <ConfirmDialog open={!!confirmDelete} title="Delete Material" message={`Delete "${confirmDelete?.title}"?`} confirmLabel="Delete"
-        onConfirm={() => { deleteMaterial(confirmDelete!.id); setConfirmDelete(null); }} onClose={() => setConfirmDelete(null)} />
+        onConfirm={() => { deleteMutation.mutate(confirmDelete!.id); }} onClose={() => setConfirmDelete(null)} />
     </div>
   );
 }
+
+

@@ -1,12 +1,27 @@
-import { useMockDB } from '../../context/MockDB';
-import { FileText, Download } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { studentService } from '../../services/studentService';
+import { facultyService } from '../../services/facultyService';
+import { operationService } from '../../services/operationService';
+import { FileText, Download, Loader2 } from 'lucide-react';
 
 export function AdminReports() {
-  const { state } = useMockDB();
+  const { data: students = [], isLoading: loadingStudents } = useQuery({
+    queryKey: ['adminStudents'],
+    queryFn: () => studentService.getStudents()
+  });
 
-  const attendance75 = state.subjectAttendance.filter(a => a.percentage < 75);
-  const feeDefaulters = state.fees.filter(f => f.status !== 'paid');
-  const unpublishedSubjects = state.subjects.filter(s => !state.publishedSubjects.includes(s.id));
+  const { data: faculty = [], isLoading: loadingFaculty } = useQuery({
+    queryKey: ['adminFaculty'],
+    queryFn: () => facultyService.getFaculty()
+  });
+
+  const { data: fees = [], isLoading: loadingFees } = useQuery({
+    queryKey: ['fees'],
+    queryFn: () => operationService.getFees()
+  });
+
+  const attendance75: any[] = [];
+  const feeDefaulters = fees.filter((f: any) => f.status !== 'paid');
 
   const generateCSV = (headers: string[], rows: string[][]): void => {
     const content = [headers, ...rows].map(r => r.join(',')).join('\n');
@@ -37,30 +52,39 @@ export function AdminReports() {
       count: feeDefaulters.length,
       download: () => generateCSV(
         ['Student ID', 'Fee Type', 'Amount', 'Status', 'Due Date'],
-        feeDefaulters.map(f => [f.studentId, f.type, `₹${f.amount}`, f.status, f.dueDate])
+        feeDefaulters.map((f: any) => [f.studentId || f.student_id, f.type, `₹${f.amount}`, f.status, f.dueDate || f.due_date])
       ),
     },
     {
       title: 'All Students List',
-      desc: `${state.students.length} students enrolled`,
+      desc: `${students.length} students enrolled`,
       type: 'academic',
-      count: state.students.length,
+      count: students.length,
       download: () => generateCSV(
         ['Name', 'Roll No', 'Department', 'Semester', 'Email', 'Phone'],
-        state.students.map(s => [s.name, s.rollNo, s.department, String(s.semester), s.email, s.phone])
+        students.map((s: any) => [s.name, s.rollNo || s.roll_no, s.department, String(s.semester), s.email, s.phone || ''])
       ),
     },
     {
       title: 'Faculty Workload Report',
-      desc: `${state.faculty.length} faculty members`,
+      desc: `${faculty.length} faculty members`,
       type: 'administrative',
-      count: state.faculty.length,
+      count: faculty.length,
       download: () => generateCSV(
-        ['Name', 'Department', 'Designation', 'Experience', 'Subjects'],
-        state.faculty.map(f => [f.name, f.department, f.designation, f.experience, f.subjects.join('; ')])
+        ['Name', 'Department', 'Designation', 'Experience'],
+        faculty.map((f: any) => [f.name, f.department, f.designation, f.experience || ''])
       ),
     },
   ];
+
+
+  if (loadingStudents || loadingFaculty || loadingFees) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-rose-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">

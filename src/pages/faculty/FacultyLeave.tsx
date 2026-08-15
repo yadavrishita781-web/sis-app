@@ -1,27 +1,55 @@
 import { useState } from 'react';
-import { useMockDB } from '../../context/MockDB';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { operationService } from '../../services/operationService';
 import { useAuth } from '../../hooks/useAuth';
 import { Modal } from '../../components/Modal';
 import { LeaveApplication } from '../../types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { formatDate } from '../../utils';
-import { Plus, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 
 export function FacultyLeave() {
-  const { state, addLeave, updateLeaveStatus } = useMockDB();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ type: 'casual' as LeaveApplication['type'], from: '', to: '', reason: '' });
   const [submitted, setSubmitted] = useState(false);
 
-  const myLeaves = state.leaves.filter(l => l.applicantId === user?.id || l.applicantId === 'F001');
+  const { data: myLeaves = [], isLoading } = useQuery({
+    queryKey: ['leaveApplications'],
+    queryFn: () => operationService.getLeaves(user?.id)
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (payload: any) => operationService.applyLeave(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leaveApplications'] });
+      setSubmitted(true);
+      setTimeout(() => { setSubmitted(false); setModal(false); setForm({ type: 'casual', from: '', to: '', reason: '' }); }, 1200);
+    }
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    addLeave({ applicantId: user?.id || 'F001', applicantName: user?.name, type: form.type, fromDate: form.from, toDate: form.to, reason: form.reason, status: 'pending' } as any);
-    setSubmitted(true);
-    setTimeout(() => { setSubmitted(false); setModal(false); setForm({ type: 'casual', from: '', to: '', reason: '' }); }, 1200);
+    createMutation.mutate({
+      userId: user?.id,
+      userName: user?.name || user?.email,
+      role: 'faculty',
+      type: form.type,
+      fromDate: form.from,
+      toDate: form.to,
+      reason: form.reason
+    });
   };
+
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -36,8 +64,8 @@ export function FacultyLeave() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Total Applied', value: myLeaves.length, color: 'text-indigo-600' },
-          { label: 'Approved', value: myLeaves.filter(l => l.status === 'approved').length, color: 'text-emerald-600' },
-          { label: 'Pending', value: myLeaves.filter(l => l.status === 'pending').length, color: 'text-amber-600' },
+          { label: 'Approved', value: myLeaves.filter((l: any) => l.status === 'approved').length, color: 'text-emerald-600' },
+          { label: 'Pending', value: myLeaves.filter((l: any) => l.status === 'pending').length, color: 'text-amber-600' },
         ].map(s => (
           <div key={s.label} className="card text-center">
             <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
@@ -61,13 +89,13 @@ export function FacultyLeave() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-              {myLeaves.map(l => (
+              {myLeaves.map((l: any) => (
                 <tr key={l.id} className="table-row">
-                  <td className="table-cell capitalize font-medium">{l.type}</td>
-                  <td className="table-cell">{formatDate(l.fromDate)}</td>
-                  <td className="table-cell">{formatDate(l.toDate)}</td>
+                  <td className="table-cell capitalize font-medium">{l.leave_type || l.type}</td>
+                  <td className="table-cell">{formatDate(l.start_date || l.fromDate)}</td>
+                  <td className="table-cell">{formatDate(l.end_date || l.toDate)}</td>
                   <td className="table-cell max-w-xs truncate">{l.reason}</td>
-                  <td className="table-cell">{formatDate(l.appliedAt)}</td>
+                  <td className="table-cell">{formatDate(l.applied_at || l.appliedAt)}</td>
                   <td className="table-cell"><StatusBadge status={l.status} /></td>
                 </tr>
               ))}
@@ -78,7 +106,7 @@ export function FacultyLeave() {
       </div>
 
       <Modal open={modal} onClose={() => setModal(false)} title="Apply for Leave"
-        footer={<><button className="btn-secondary" onClick={() => setModal(false)}>Cancel</button><button form="leave-form" type="submit" className="btn-primary" disabled={submitted}>{submitted ? 'Submitted!' : 'Submit Application'}</button></>}
+        footer={<><button className="btn-secondary" onClick={() => setModal(false)}>Cancel</button><button form="leave-form" type="submit" className="btn-primary" disabled={createMutation.isPending || submitted}>{submitted ? 'Submitted!' : 'Submit Application'}</button></>}
       >
         <form id="leave-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -99,3 +127,4 @@ export function FacultyLeave() {
     </div>
   );
 }
+

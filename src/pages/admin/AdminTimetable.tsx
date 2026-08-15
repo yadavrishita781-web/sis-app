@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
-import { useMockDB } from '../../context/MockDB';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { academicService } from '../../services/academicService';
 import { Modal } from '../../components/Modal';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { TimetableSlot } from '../../types';
-import { Plus, Trash2, Pencil } from 'lucide-react';
+import { Plus, Trash2, Pencil, Loader2 } from 'lucide-react';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
@@ -15,39 +16,125 @@ const BLANK: Omit<TimetableSlot, 'id'> = {
 };
 
 export function AdminTimetable() {
-  const { state, addTimetableSlot, deleteTimetableSlot, updateTimetableSlot } = useMockDB();
+  const queryClient = useQueryClient();
   const [dept, setDept] = useState('Computer Science');
   const [semester, setSemester] = useState(3);
   const [modal, setModal] = useState<'add' | 'edit' | null>(null);
-  const [selected, setSelected] = useState<TimetableSlot | null>(null);
+  const [selected, setSelected] = useState<any | null>(null);
   const [form, setForm] = useState<Omit<TimetableSlot, 'id'>>(BLANK);
-  const [confirmDelete, setConfirmDelete] = useState<TimetableSlot | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<any | null>(null);
+
+  const { data: timetable = [], isLoading: loadingTimetable } = useQuery({
+    queryKey: ['timetable'],
+    queryFn: () => academicService.getTimetable()
+  });
+
+  const { data: subjects = [], isLoading: loadingSubjects } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: () => academicService.getSubjects()
+  });
+
+  const { data: departments = [], isLoading: loadingDepartments } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => academicService.getDepartments()
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (newSlot: any) => academicService.createTimetableSlot(newSlot),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timetable'] });
+      setModal(null);
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (updatedSlot: any) => {
+      const { id, ...data } = updatedSlot;
+      return academicService.updateTimetableSlot(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timetable'] });
+      setModal(null);
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => academicService.deleteTimetableSlot(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timetable'] });
+    }
+  });
 
   const slots = useMemo(() =>
-    state.timetable.filter(t =>
-      (!t.department || t.department === dept) &&
-      (!t.semester || t.semester === semester)
+    timetable.filter((t: any) =>
+      (!t.department || t.department.toLowerCase().includes(dept.toLowerCase()) || dept.toLowerCase().includes(t.department.toLowerCase())) &&
+      (!t.semester || Number(t.semester) === Number(semester))
     ),
-    [state.timetable, dept, semester]
+    [timetable, dept, semester]
   );
 
   const openAdd = () => {
-    setForm({ ...BLANK, department: dept, semester });
+    const firstSub = subjects[0];
+    setForm({ 
+      ...BLANK, 
+      department: dept, 
+      semester,
+      subjectId: firstSub?.id || '',
+      subjectName: firstSub?.name || '',
+      facultyName: firstSub?.facultyName || (firstSub as any)?.faculty_name || ''
+    });
     setModal('add');
   };
-  const openEdit = (slot: TimetableSlot) => { setSelected(slot); setForm({ ...slot }); setModal('edit'); };
+
+  const openEdit = (slot: any) => { 
+    setSelected(slot); 
+    setForm({ 
+      day: slot.day,
+      startTime: slot.startTime || slot.start_time,
+      endTime: slot.endTime || slot.end_time,
+      subjectId: slot.subjectId || slot.subject_id,
+      subjectName: slot.subjectName || slot.subject_name || '',
+      facultyName: slot.facultyName || slot.faculty_name || '',
+      room: slot.room,
+      department: slot.department || dept,
+      semester: Number(slot.semester) || semester
+    }); 
+    setModal('edit'); 
+  };
 
   const handleSubjectChange = (subjectId: string) => {
-    const sub = state.subjects.find(s => s.id === subjectId);
-    const fac = state.faculty.find(f => f.id === sub?.facultyId);
-    setForm(prev => ({ ...prev, subjectId, subjectName: sub?.name || '', facultyName: fac?.name || '' }));
+    const sub = subjects.find((s: any) => s.id === subjectId);
+    setForm(prev => ({ ...prev, subjectId, subjectName: sub?.name || '', facultyName: sub?.facultyName || (sub as any)?.faculty_name || '' }));
   };
 
+
   const handleSave = () => {
-    if (modal === 'add') addTimetableSlot(form);
-    else if (modal === 'edit' && selected) updateTimetableSlot({ ...form, id: selected.id });
-    setModal(null);
+    const payload = {
+      subjectId: form.subjectId,
+      subjectName: form.subjectName,
+      facultyName: form.facultyName,
+      day: form.day,
+      startTime: form.startTime,
+      endTime: form.endTime,
+      room: form.room,
+      department: form.department,
+      semester: form.semester
+    };
+
+    if (modal === 'add') {
+      createMutation.mutate(payload);
+    } else if (modal === 'edit' && selected) {
+      updateMutation.mutate({ ...payload, id: selected.id });
+    }
   };
+
+  if (loadingTimetable || loadingSubjects || loadingDepartments) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-rose-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -62,7 +149,7 @@ export function AdminTimetable() {
       <div className="card">
         <div className="flex items-center gap-4 mb-6">
           <select className="input w-auto" value={dept} onChange={e => setDept(e.target.value)}>
-            {state.departments.map(d => <option key={d.id}>{d.name}</option>)}
+            {departments.map((d: any) => <option key={d.id} value={d.name}>{d.name}</option>)}
           </select>
           <select className="input w-auto" value={semester} onChange={e => setSemester(+e.target.value)}>
             {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
@@ -82,15 +169,16 @@ export function AdminTimetable() {
                 <tr key={time} className="border-b border-slate-100 dark:border-slate-800">
                   <td className="px-4 py-3 text-slate-400 font-mono text-xs">{time}</td>
                   {DAYS.map(day => {
-                    const slot = slots.find(t => t.day === day && t.startTime === time);
+                    const slot = slots.find((t: any) => t.day === day && (t.startTime === time || t.start_time === time));
                     return (
                       <td key={day} className="px-2 py-2 align-top text-center border-l border-slate-100 dark:border-slate-800/50">
                         {slot ? (
                           <div className="group relative inline-block text-left w-full">
                             <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/50 text-xs text-indigo-900 dark:text-indigo-200">
-                              <p className="font-semibold">{slot.subjectName}</p>
-                              <p className="opacity-70 mt-0.5">{slot.room} · {slot.facultyName.split(' ')[0]}</p>
+                              <p className="font-semibold">{slot.subjectName || (slot as any).subject_name}</p>
+                              <p className="opacity-70 mt-0.5">{slot.room} · {(slot.facultyName || (slot as any).faculty_name)?.split(' ')[0]}</p>
                             </div>
+
                             <div className="absolute -top-2 -right-2 hidden group-hover:flex gap-1">
                               <button onClick={() => openEdit(slot)} className="p-1 bg-blue-100 text-blue-600 rounded-full shadow-sm hover:bg-blue-200 transition-colors">
                                 <Pencil className="h-3 w-3" />
@@ -114,7 +202,7 @@ export function AdminTimetable() {
       </div>
 
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'add' ? 'Add Timetable Slot' : 'Edit Slot'} size="lg"
-        footer={<><button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn-primary" onClick={handleSave}>Save Slot</button></>}
+        footer={<><button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn-primary" disabled={createMutation.isPending || updateMutation.isPending} onClick={handleSave}>Save Slot</button></>}
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -144,7 +232,7 @@ export function AdminTimetable() {
             <label className="label">Subject</label>
             <select className="input" value={form.subjectId} onChange={e => handleSubjectChange(e.target.value)}>
               <option value="">Select subject...</option>
-              {state.subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div>
@@ -154,8 +242,9 @@ export function AdminTimetable() {
         </div>
       </Modal>
 
-      <ConfirmDialog open={!!confirmDelete} title="Remove Slot" message={`Remove "${confirmDelete?.subjectName}" from ${confirmDelete?.day} ${confirmDelete?.startTime}?`} confirmLabel="Remove"
-        onConfirm={() => { deleteTimetableSlot(confirmDelete!.id); setConfirmDelete(null); }} onClose={() => setConfirmDelete(null)} />
+      <ConfirmDialog open={!!confirmDelete} title="Remove Slot" message={`Remove "${confirmDelete?.subjectName || confirmDelete?.subject_name}" from ${confirmDelete?.day} ${confirmDelete?.startTime || confirmDelete?.start_time}?`} confirmLabel="Remove"
+        onConfirm={() => { deleteMutation.mutate(confirmDelete!.id); setConfirmDelete(null); }} onClose={() => setConfirmDelete(null)} />
     </div>
   );
 }
+

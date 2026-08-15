@@ -1,33 +1,59 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Save, CheckCircle } from 'lucide-react';
-import { useMockDB } from '../../context/MockDB';
-import { useAuth } from '../../hooks/useAuth';
 import { cn } from '../../utils';
+import { auth } from '../../firebase/config';
+import { updatePassword } from 'firebase/auth';
+
+import { operationService } from '../../services/operationService';
 
 export function AdminSettings() {
-  const { changePassword } = useMockDB();
-  const { user } = useAuth();
-  
+  const [settings, setSettings] = useState({
+
+    academicSession: '2024-2025',
+    activeSemester: 'odd',
+    collegeName: 'Institute of Technology',
+    contactEmail: 'admin@institute.edu',
+    collegeAddress: '123 Education Hub, Knowledge Park'
+  });
+
   const [saved, setSaved] = useState(false);
-  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+
+  useEffect(() => {
+    operationService.getSettings().then(data => {
+      if (data && Object.keys(data).length > 0) {
+        setSettings(prev => ({ ...prev, ...data }));
+      }
+    });
+  }, []);
+
+  const handleSave = async () => {
+    await operationService.updateSettings(settings);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
 
   const [password, setPassword] = useState({ current: '', newPass: '', confirm: '' });
   const [pwdSaved, setPwdSaved] = useState(false);
   const [pwdError, setPwdError] = useState('');
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.newPass !== password.confirm) { setPwdError('Passwords do not match'); return; }
     if (password.newPass.length < 6) { setPwdError('Minimum 6 characters'); return; }
-    if (!user) return;
+    if (!auth.currentUser) return;
     
     setPwdError('');
-    changePassword(user.email, password.newPass);
-    
-    setPwdSaved(true);
-    setPassword({ current: '', newPass: '', confirm: '' });
-    setTimeout(() => setPwdSaved(false), 2000);
+    try {
+      await updatePassword(auth.currentUser, password.newPass);
+      setPwdSaved(true);
+      setPassword({ current: '', newPass: '', confirm: '' });
+      setTimeout(() => setPwdSaved(false), 2000);
+    } catch (err: any) {
+      setPwdError(err.message || 'Failed to update password. You may need to re-login.');
+    }
   };
+
+
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl">

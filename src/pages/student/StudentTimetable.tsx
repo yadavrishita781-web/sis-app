@@ -1,5 +1,7 @@
-import { useMockDB } from '../../context/MockDB';
+import { useQuery } from '@tanstack/react-query';
+import { academicService } from '../../services/academicService';
 import { cn } from '../../utils';
+import { Loader2 } from 'lucide-react';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
@@ -12,16 +14,28 @@ const COLORS = [
 ];
 
 export function StudentTimetable() {
-  const { state } = useMockDB();
+  const { data: timetable = [], isLoading } = useQuery({
+    queryKey: ['timetable'],
+    queryFn: () => academicService.getTimetable()
+  });
 
   const subjectColors: Record<string, string> = {};
-  state.timetable.forEach(t => {
-    if (!subjectColors[t.subjectId]) {
-      subjectColors[t.subjectId] = COLORS[Object.keys(subjectColors).length % COLORS.length];
+  timetable.forEach((t: any) => {
+    const key = t.subjectId || t.subject_id || t.subjectName || t.subject_name;
+    if (!subjectColors[key]) {
+      subjectColors[key] = COLORS[Object.keys(subjectColors).length % COLORS.length];
     }
   });
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -36,15 +50,18 @@ export function StudentTimetable() {
       <div className="card">
         <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-3">Today ({today})</h2>
         <div className="flex gap-3 flex-wrap">
-          {state.timetable.filter(t => t.day === today).length === 0 ? (
+          {timetable.filter((t: any) => t.day === today).length === 0 ? (
             <p className="text-slate-400 text-sm">No classes today</p>
-          ) : state.timetable.filter(t => t.day === today).map(slot => (
-            <div key={slot.id} className={cn('px-4 py-3 rounded-xl border text-sm', subjectColors[slot.subjectId])}>
-              <p className="font-semibold">{slot.subjectName}</p>
-              <p className="text-xs opacity-70 mt-0.5">{slot.startTime}–{slot.endTime} · {slot.room}</p>
-              <p className="text-xs opacity-60 mt-0.5">{slot.facultyName}</p>
-            </div>
-          ))}
+          ) : timetable.filter((t: any) => t.day === today).map((slot: any) => {
+            const key = slot.subjectId || slot.subject_id || slot.subjectName || slot.subject_name;
+            return (
+              <div key={slot.id} className={cn('px-4 py-3 rounded-xl border text-sm', subjectColors[key] || COLORS[0])}>
+                <p className="font-semibold">{slot.subjectName || slot.subject_name}</p>
+                <p className="text-xs opacity-70 mt-0.5">{slot.startTime || slot.start_time}–{slot.endTime || slot.end_time} · {slot.room}</p>
+                <p className="text-xs opacity-60 mt-0.5">{slot.facultyName || slot.faculty_name}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -68,21 +85,23 @@ export function StudentTimetable() {
               <tr key={time} className="border-b border-slate-100 dark:border-slate-800">
                 <td className="px-4 py-3 text-slate-400 font-mono text-xs">{time}</td>
                 {DAYS.map(day => {
-                  const slot = state.timetable.find(t => t.day === day && t.startTime === time);
+                  const slot: any = timetable.find((t: any) => t.day === day && (t.startTime === time || t.start_time === time));
+                  const key = slot ? (slot.subjectId || slot.subject_id || slot.subjectName || slot.subject_name) : '';
                   return (
                     <td key={day} className={cn('px-2 py-2 align-top border-l border-slate-100 dark:border-slate-800/50',
                       day === today ? 'bg-indigo-50/30 dark:bg-indigo-900/10' : ''
                     )}>
                       {slot && (
-                        <div className={cn('p-2 rounded-lg border text-xs leading-tight', subjectColors[slot.subjectId])}>
-                          <p className="font-semibold">{slot.subjectName}</p>
+                        <div className={cn('p-2 rounded-lg border text-xs leading-tight', subjectColors[key] || COLORS[0])}>
+                          <p className="font-semibold">{slot.subjectName || slot.subject_name}</p>
                           <p className="opacity-70 mt-0.5">{slot.room}</p>
-                          <p className="opacity-60 mt-0.5">{slot.facultyName.split(' ').pop()}</p>
+                          <p className="opacity-60 mt-0.5">{(slot.facultyName || slot.faculty_name)?.split(' ').pop()}</p>
                         </div>
                       )}
                     </td>
                   );
                 })}
+
               </tr>
             ))}
           </tbody>
@@ -91,3 +110,5 @@ export function StudentTimetable() {
     </div>
   );
 }
+
+

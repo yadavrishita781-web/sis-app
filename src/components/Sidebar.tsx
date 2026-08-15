@@ -24,14 +24,14 @@ export function Sidebar({ items, open, onClose }: SidebarProps) {
       {/* Mobile overlay */}
       {open && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-xs z-40"
           onClick={onClose}
         />
       )}
-      {/* Sidebar */}
+      {/* Sidebar Container */}
       <aside
         className={cn(
-          'fixed left-0 top-0 h-screen w-64 bg-theme-sidebar z-50 flex flex-col transition-transform duration-300 ease-in-out',
+          'fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-[#111C38] via-[#172550] to-[#0A1226] text-white z-50 flex flex-col transition-transform duration-300 ease-in-out border-r border-slate-800/60 shadow-xl',
           'lg:static lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full'
         )}
@@ -43,27 +43,19 @@ export function Sidebar({ items, open, onClose }: SidebarProps) {
           <X className="h-4 w-4" />
         </button>
 
-        {/* User Profile Header */}
-        <div className="flex flex-col items-center pt-10 pb-6">
-          <div className="relative mb-4">
-            <div className="h-20 w-20 rounded-full border-2 border-theme-accent overflow-hidden p-0.5">
-              <div className="h-full w-full rounded-full bg-theme-bg flex items-center justify-center text-theme-sidebar font-bold text-2xl">
-                {user?.name?.charAt(0) || 'U'}
-              </div>
-            </div>
-            {/* Decorative arc from the image (simplified) */}
-            <div className="absolute top-0 right-0 h-full w-full rounded-full border-t-2 border-r-2 border-transparent" />
+        {/* Top SIS Logo Branding Header matching reference image */}
+        <div className="px-6 pt-7 pb-6 flex items-center gap-3 border-b border-white/10">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-600 to-violet-600 flex items-center justify-center text-white font-extrabold text-base shadow-lg shadow-blue-500/30 ring-2 ring-white/20">
+            SIS
           </div>
-          <h2 className="text-white font-bold tracking-wide uppercase text-sm">
-            {user?.name || 'ALEX JOHNSON'}
-          </h2>
-          <p className="text-slate-400 text-xs mt-1">
-            {user?.email || 'alex.johnson@gmail.com'}
-          </p>
+          <div>
+            <h1 className="font-extrabold text-base tracking-tight text-white leading-tight">SIS Portal</h1>
+            <p className="text-[11px] text-slate-400 font-medium">Student Information System</p>
+          </div>
         </div>
 
         {/* Nav Links */}
-        <nav className="flex-1 overflow-y-auto pl-4 py-2 space-y-1">
+        <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1.5">
           {items.map(item => (
             <NavLink
               key={item.href}
@@ -71,37 +63,34 @@ export function Sidebar({ items, open, onClose }: SidebarProps) {
               end={item.href.split('/').length <= 2}
               onClick={() => window.innerWidth < 1024 && onClose()}
               className={({ isActive }) => cn(
-                'flex items-center gap-4 pl-4 py-3 text-sm font-semibold transition-all duration-150 group rounded-l-full relative',
+                'flex items-center gap-3.5 px-4 py-3 text-sm font-semibold transition-all duration-200 rounded-2xl group',
                 isActive
-                  ? 'nav-item-active'
-                  : 'text-slate-300 hover:text-white'
+                  ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white shadow-md shadow-blue-600/30'
+                  : 'text-slate-300 hover:text-white hover:bg-white/5'
               )}
             >
               {({ isActive }) => (
                 <>
-                  <item.icon className={cn('h-5 w-5 flex-shrink-0 transition-colors z-10', isActive ? 'text-theme-accent' : 'text-slate-400 group-hover:text-slate-300')} />
-                  <span className="z-10 tracking-wide">{item.label}</span>
+                  <item.icon className={cn('h-5 w-5 flex-shrink-0 transition-colors', isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200')} />
+                  <span className="tracking-wide">{item.label}</span>
                 </>
               )}
             </NavLink>
           ))}
         </nav>
 
-        {/* Footer info (Active Users / Decor) - matching the image loosely */}
-        <div className="p-6 mt-auto">
-          <p className="text-[10px] font-bold text-theme-accent tracking-widest mb-3 uppercase">Active Users</p>
-          <div className="flex -space-x-2">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-8 w-8 rounded-full border-2 border-theme-sidebar bg-slate-200 flex items-center justify-center overflow-hidden">
-                <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="user" className="h-full w-full object-cover" />
-              </div>
-            ))}
-            <div className="h-8 w-8 rounded-full border-2 border-theme-sidebar bg-theme-accent flex items-center justify-center text-[10px] font-bold text-white z-10">
-              +70
-            </div>
+        {/* Footer User Profile Capsule */}
+        <div className="p-4 m-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-xs">
+            {user?.name?.charAt(0) || 'U'}
+          </div>
+          <div className="overflow-hidden">
+            <p className="text-xs font-bold text-white truncate">{user?.name || 'User'}</p>
+            <p className="text-[10px] text-slate-400 capitalize truncate">{user?.role || 'Portal User'}</p>
           </div>
         </div>
       </aside>
     </>
   );
 }
+

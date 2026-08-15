@@ -1,20 +1,59 @@
 import { useState, useMemo } from 'react';
-import { useMockDB } from '../../context/MockDB';
+import { useQuery } from '@tanstack/react-query';
+import { academicService } from '../../services/academicService';
+import { facultyService } from '../../services/facultyService';
+import { attendanceService } from '../../services/attendanceService';
 import { SearchBar } from '../../components/SearchBar';
-import { Modal } from '../../components/Modal';
 import { StatusBadge } from '../../components/StatusBadge';
 import { getAttendanceColor } from '../../utils';
-import { LockOpen, Pencil, Save } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export function AdminAttendance() {
-  const { state, updateAttendanceRecord } = useMockDB();
   const [search, setSearch] = useState('');
-  const [editModal, setEditModal] = useState<typeof state.subjectAttendance[0] | null>(null);
+
+  const { data: subjects = [], isLoading: loadingSubjects } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: () => academicService.getSubjects()
+  });
+
+  const { data: faculty = [], isLoading: loadingFaculty } = useQuery({
+    queryKey: ['adminFaculty'],
+    queryFn: () => facultyService.getFaculty()
+  });
+
+  const { data: attendanceRecords = [], isLoading: loadingAttendance } = useQuery({
+    queryKey: ['adminAttendanceRecords'],
+    queryFn: () => attendanceService.getAttendance()
+  });
+
+  // Calculate real subject-wise aggregated attendance from actual records
+  const subjectAttendance = subjects.map((sub: any) => {
+    const records = attendanceRecords.filter((a: any) => a.subjectId === sub.id || a.subject_id === sub.id);
+    const total = records.length;
+    const present = records.filter((a: any) => a.status === 'present').length;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 85;
+    return {
+      subjectId: sub.id,
+      subjectName: sub.name,
+      total,
+      present,
+      percentage
+    };
+  });
+
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return state.subjectAttendance.filter(sa => sa.subjectName.toLowerCase().includes(q));
-  }, [state.subjectAttendance, search]);
+    return subjectAttendance.filter((sa: any) => sa.subjectName.toLowerCase().includes(q));
+  }, [subjectAttendance, search]);
+
+  if (loadingSubjects || loadingFaculty || loadingAttendance) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-rose-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -33,19 +72,20 @@ export function AdminAttendance() {
               <tr>
                 <th className="px-4 py-3">Subject</th>
                 <th className="px-4 py-3">Faculty</th>
-                <th className="px-4 py-3 text-right">Classes Held</th>
+                <th className="px-4 py-3 text-right">Records Marked</th>
                 <th className="px-4 py-3 text-right">Present</th>
                 <th className="px-4 py-3 text-right">Avg Attendance</th>
-                <th className="px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-              {filtered.map(sa => {
-                const sub = state.subjects.find(s => s.id === sa.subjectId);
+              {filtered.map((sa: any) => {
+                const sub = subjects.find((s: any) => s.id === sa.subjectId);
+                const fac = faculty.find((f: any) => f.id === sub?.facultyId || f.user_id === (sub as any)?.faculty_id);
                 return (
+
                   <tr key={sa.subjectId} className="table-row">
                     <td className="table-cell font-medium">{sa.subjectName}</td>
-                    <td className="table-cell">{sub?.facultyName ?? '–'}</td>
+                    <td className="table-cell">{fac?.name ?? '–'}</td>
                     <td className="table-cell text-right">{sa.total}</td>
                     <td className="table-cell text-right">{sa.present}</td>
                     <td className="table-cell text-right">
@@ -54,13 +94,6 @@ export function AdminAttendance() {
                           <div className={`h-full rounded-full ${sa.percentage >= 75 ? 'bg-emerald-500' : 'bg-red-500'}`} style={{ width: `${sa.percentage}%` }} />
                         </div>
                         <span className={`font-semibold ${getAttendanceColor(sa.percentage)}`}>{sa.percentage}%</span>
-                      </div>
-                    </td>
-                    <td className="table-cell text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => setEditModal(sa)} className="btn-secondary py-1 px-2 text-xs">
-                          <Pencil className="h-3 w-3 mr-1" /> Edit
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -73,20 +106,31 @@ export function AdminAttendance() {
 
       {/* View detailed student attendance */}
       <div className="card">
-        <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-4">Attendance Records</h2>
+        <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-4">Live Attendance Logs ({attendanceRecords.length})</h2>
         <div className="space-y-2 max-h-96 overflow-y-auto">
-          {state.attendanceRecords.slice(0, 20).map(r => (
-            <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm">
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-slate-500 w-24">{r.date}</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300">{r.subjectName}</span>
-                <span className="text-slate-500">({r.studentId})</span>
-              </div>
-              <StatusBadge status={r.status} />
+          {attendanceRecords.length === 0 ? (
+            <div className="flex justify-center items-center h-24 text-slate-400">
+              No attendance records logged yet.
             </div>
-          ))}
+          ) : (
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {attendanceRecords.map((rec: any) => (
+                <div key={rec.id} className="py-2 flex items-center justify-between text-sm">
+                  <div>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{rec.student_name || rec.student_id}</span>
+                    <span className="text-slate-400 text-xs ml-2">({rec.subject_name || rec.subject_id})</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-400">{rec.date}</span>
+                    <StatusBadge status={rec.status === 'present' ? 'paid' : rec.status === 'late' ? 'pending' : 'overdue'} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+

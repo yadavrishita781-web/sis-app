@@ -1,30 +1,34 @@
 import { useState } from 'react';
-import { Save, CheckCircle } from 'lucide-react';
-import { useMockDB } from '../../context/MockDB';
-import { useAuth } from '../../hooks/useAuth';
+import { CheckCircle } from 'lucide-react';
 import { cn } from '../../utils';
+import { auth } from '../../firebase/config';
+import { updatePassword } from 'firebase/auth';
+
 
 export function FacultySettings() {
-  const { changePassword } = useMockDB();
-  const { user } = useAuth();
-  
   const [password, setPassword] = useState({ current: '', newPass: '', confirm: '' });
+
   const [pwdSaved, setPwdSaved] = useState(false);
   const [pwdError, setPwdError] = useState('');
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.newPass !== password.confirm) { setPwdError('Passwords do not match'); return; }
     if (password.newPass.length < 6) { setPwdError('Minimum 6 characters'); return; }
-    if (!user) return;
+    if (!auth.currentUser) return;
     
     setPwdError('');
-    changePassword(user.email, password.newPass);
-    
-    setPwdSaved(true);
-    setPassword({ current: '', newPass: '', confirm: '' });
-    setTimeout(() => setPwdSaved(false), 2000);
+    try {
+      await updatePassword(auth.currentUser, password.newPass);
+      setPwdSaved(true);
+      setPassword({ current: '', newPass: '', confirm: '' });
+      setTimeout(() => setPwdSaved(false), 2000);
+    } catch (err: any) {
+      setPwdError(err.message || 'Failed to update password. You may need to re-login.');
+    }
   };
+
+
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl">

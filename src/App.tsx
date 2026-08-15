@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
 import { ProtectedRoute } from './routes/ProtectedRoute';
-import { MockDBProvider } from './context/MockDB';
+import { Agentation } from 'agentation';
 
 // Layouts
 import { StudentLayout } from './layouts/StudentLayout';
@@ -51,10 +52,12 @@ import { AdminNotices } from './pages/admin/AdminNotices';
 import { AdminReports } from './pages/admin/AdminReports';
 import { AdminSettings } from './pages/admin/AdminSettings';
 
+const queryClient = new QueryClient();
+
 export default function App() {
   return (
     <ThemeProvider>
-      <MockDBProvider>
+      <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <BrowserRouter>
             <Routes>
@@ -114,9 +117,11 @@ export default function App() {
 
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
+          {import.meta.env.DEV && <Agentation />}
           </BrowserRouter>
         </AuthProvider>
-      </MockDBProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }
+

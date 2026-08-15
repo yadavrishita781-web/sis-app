@@ -1,48 +1,89 @@
 import { useState, useRef } from 'react';
-import { useMockDB } from '../../context/MockDB';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { assignmentService } from '../../services/assignmentService';
+import { academicService } from '../../services/academicService';
+import { storageService } from '../../services/storageService';
 import { useAuth } from '../../hooks/useAuth';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Modal } from '../../components/Modal';
-import { formatDate } from '../../utils';
-import { cn } from '../../utils';
-import { Upload, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { formatDate, cn } from '../../utils';
+import { Upload, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react';
 
 export function StudentAssignments() {
-  const { state, submitAssignment } = useMockDB();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState<'pending' | 'submitted' | 'graded'>('pending');
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [uploadModal, setUploadModal] = useState<typeof state.assignments[0] | null>(null);
+  const [uploadModal, setUploadModal] = useState<any | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const studentId = user?.id || 'S001';
-  const student = state.students.find(s => s.id === studentId) || state.students[0];
+  const { data: assignments = [], isLoading } = useQuery({
+    queryKey: ['assignments'],
+    queryFn: () => assignmentService.getAssignments()
+  });
 
-  // Show assignments from context — all pending are visible to student
-  const allAssignments = state.assignments;
-  // Check if student has submitted for a given assignment
-  const getStudentStatus = (a: typeof state.assignments[0]) => {
-    const sub = state.submissions.find(s => s.assignmentId === a.id && s.studentId === studentId);
-    if (sub?.status === 'graded') return 'graded';
-    if (sub) return 'submitted';
-    return a.status === 'pending' ? 'pending' : a.status;
-  };
+  const { data: subjects = [] } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: () => academicService.getSubjects()
+  });
 
-  const filtered = allAssignments.filter(a => getStudentStatus(a) === tab);
+  const { data: submissions = [] } = useQuery({
+    queryKey: ['studentSubmissions', user?.id],
+    queryFn: () => user?.id ? assignmentService.getSubmissionsByUser(user.id) : []
+  });
 
-  const handleUpload = () => {
-    if (!selectedFile || !uploadModal || !student) return;
-    setUploading(true);
-    setTimeout(() => {
-      submitAssignment(uploadModal.id, studentId, student.name, student.rollNo, selectedFile);
-      setUploading(false);
+  const submitMutation = useMutation({
+    mutationFn: async ({ assignmentId, file }: { assignmentId: string, file: File }) => {
+      const fileUrl = await storageService.uploadFile(`submissions/${user?.id}/${Date.now()}_${file.name}`, file);
+      return assignmentService.submitAssignment({
+        assignmentId,
+        studentId: user?.id || '',
+        studentName: user?.name || user?.email || 'Student',
+        fileUrl,
+        fileName: file.name
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['studentSubmissions', user?.id] });
       setUploadModal(null);
       setSelectedFile(null);
-      setTab('submitted');
-    }, 800);
+    }
+  });
+
+  const getStudentStatus = (a: any) => {
+    const sub = submissions.find((s: any) => s.assignmentId === a.id || s.assignment_id === a.id);
+    if (sub?.status === 'graded') return 'graded';
+    if (sub) return 'submitted';
+    return 'pending';
   };
+
+  const filtered = assignments.filter((a: any) => getStudentStatus(a) === tab);
+
+  const handleSubmit = async () => {
+    if (!uploadModal) return;
+    if (!selectedFile) {
+      alert("Please select a file to submit.");
+      return;
+    }
+    try {
+      setUploading(true);
+      await submitMutation.mutateAsync({ assignmentId: uploadModal.id, file: selectedFile });
+    } catch (err: any) {
+      alert(err.message || "Failed to submit assignment");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -69,7 +110,7 @@ export function StudentAssignments() {
             <span className={cn('ml-2 text-xs px-1.5 py-0.5 rounded-full',
               tab === t ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-400'
             )}>
-              {allAssignments.filter(a => getStudentStatus(a) === t).length}
+              {assignments.filter((a: any) => getStudentStatus(a) === t).length}
             </span>
           </button>
         ))}
@@ -81,9 +122,11 @@ export function StudentAssignments() {
           <div className="card text-center py-12">
             <p className="text-slate-400">No {tab} assignments</p>
           </div>
-        ) : filtered.map(a => {
-          const sub = state.submissions.find(s => s.assignmentId === a.id && s.studentId === studentId);
+        ) : filtered.map((a: any) => {
+          const sub = submissions.find((s: any) => s.assignmentId === a.id || s.assignment_id === a.id);
           const status = getStudentStatus(a);
+          const subject = subjects.find((s: any) => s.id === a.subjectId || s.id === a.subject_id);
+          const dueDate = a.dueDate || a.due_date;
           return (
             <div key={a.id} className="card">
               <div
@@ -95,12 +138,12 @@ export function StudentAssignments() {
                     <h3 className="font-semibold text-slate-800 dark:text-slate-200">{a.title}</h3>
                     <StatusBadge status={status} />
                   </div>
-                  <p className="text-sm text-slate-500 mt-1">{a.subjectName} · {a.facultyName}</p>
+                  <p className="text-sm text-slate-500 mt-1">{a.subjectName || subject?.name}</p>
                   <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
-                    <span>Due: {formatDate(a.dueDate)}</span>
-                    <span>Max Marks: {a.maxMarks}</span>
-                    {sub?.marksObtained !== undefined && (
-                      <span className="text-emerald-600 font-semibold">Marks: {sub.marksObtained}/{a.maxMarks}</span>
+                    <span>Due: {formatDate(dueDate)}</span>
+                    <span>Max Marks: {a.maxMarks || a.max_marks || 20}</span>
+                    {(sub?.marksObtained !== undefined || (sub as any)?.marks !== undefined) && (
+                      <span className="text-emerald-600 font-semibold">Marks: {sub?.marksObtained ?? (sub as any)?.marks}/{a.maxMarks || (a as any).max_marks || 20}</span>
                     )}
                   </div>
                 </div>
@@ -111,9 +154,9 @@ export function StudentAssignments() {
                 <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 space-y-3 animate-fade-in">
                   <p className="text-sm text-slate-600 dark:text-slate-400">{a.description}</p>
 
-                  {a.fileName && (
-                    <a href={a.fileUrl} download={a.fileName} className="flex items-center gap-2 text-sm text-indigo-600 hover:underline">
-                      <Download className="h-4 w-4" /> {a.fileName} (Assignment file)
+                  {(a.fileUrl || (a as any).file_url) && (
+                    <a href={a.fileUrl || (a as any).file_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-indigo-600 hover:underline">
+                      <Download className="h-4 w-4" /> Download Assignment attachment
                     </a>
                   )}
 
@@ -128,14 +171,16 @@ export function StudentAssignments() {
                     <div className="p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
                       <p className="text-xs text-slate-400">Your submission</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{sub.fileName}</span>
-                        <span className="text-xs text-slate-400">({sub.fileSize})</span>
-                        <a href={sub.fileUrl} download={sub.fileName} className="text-indigo-600 hover:underline text-xs flex items-center gap-1">
-                          <Download className="h-3 w-3" /> Download
-                        </a>
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{sub.fileName || (sub as any).file_name}</span>
+                        {(sub.fileUrl || (sub as any).file_url) && (
+                          <a href={sub.fileUrl || (sub as any).file_url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline text-xs flex items-center gap-1">
+                            <Download className="h-3 w-3" /> View Submitted File
+                          </a>
+                        )}
                       </div>
                     </div>
                   )}
+
 
                   {status === 'pending' && (
                     <button className="btn-primary" onClick={() => setUploadModal(a)}>
@@ -151,20 +196,20 @@ export function StudentAssignments() {
 
       {/* Upload Modal */}
       <Modal open={!!uploadModal} onClose={() => { setUploadModal(null); setSelectedFile(null); }} title={`Submit — ${uploadModal?.title}`}
-        footer={<><button className="btn-secondary" onClick={() => setUploadModal(null)}>Cancel</button><button className="btn-primary" onClick={handleUpload} disabled={!selectedFile || uploading}>{uploading ? 'Uploading...' : 'Submit Assignment'}</button></>}
+        footer={<><button className="btn-secondary" onClick={() => setUploadModal(null)}>Cancel</button><button className="btn-primary" onClick={handleSubmit} disabled={submitMutation.isPending || uploading}>{uploading ? 'Uploading...' : 'Confirm Submit'}</button></>}
       >
         {uploadModal && (
           <div className="space-y-4">
             <div className="p-3 bg-slate-50 dark:bg-slate-700 rounded-lg text-sm">
               <p className="font-medium">{uploadModal.title}</p>
-              <p className="text-slate-500">{uploadModal.subjectName} · Due: {formatDate(uploadModal.dueDate)} · Max: {uploadModal.maxMarks} marks</p>
+              <p className="text-slate-500">{uploadModal.subjectName || subjects.find((s: any) => s.id === uploadModal.subjectId || s.id === uploadModal.subject_id)?.name} · Due: {formatDate(uploadModal.dueDate || uploadModal.due_date)} · Max: {uploadModal.maxMarks || uploadModal.max_marks || 20} marks</p>
             </div>
             <div>
               <label className="label">Upload your submission</label>
               <input
                 ref={fileRef}
                 type="file"
-                accept=".pdf,.doc,.docx,.zip,.txt"
+                accept=".pdf,.doc,.docx,.zip,.txt,.png,.jpg"
                 className="input py-2"
                 onChange={e => setSelectedFile(e.target.files?.[0] || null)}
               />
@@ -176,3 +221,4 @@ export function StudentAssignments() {
     </div>
   );
 }
+

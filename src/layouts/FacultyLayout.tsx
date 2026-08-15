@@ -22,14 +22,15 @@ const navItems: NavItem[] = [
 export function FacultyLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
-    <div className="flex h-screen bg-theme-sidebar overflow-hidden">
+    <div className="flex h-screen bg-[#0B1329] overflow-hidden">
       <Sidebar items={navItems} open={sidebarOpen} onClose={() => setSidebarOpen(false)} role="faculty" />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-theme-bg rounded-l-[2rem] shadow-2xl relative">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8FAFC] dark:bg-slate-900 lg:rounded-l-[2.5rem] shadow-2xl relative border-l border-slate-800/40">
         <Navbar onMenuToggle={() => setSidebarOpen(o => !o)} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
     </div>
   );
 }
+

@@ -1,21 +1,24 @@
 import { useState, useMemo } from 'react';
-import { useMockDB } from '../../context/MockDB';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { studentService } from '../../services/studentService';
+
 import { SearchBar } from '../../components/SearchBar';
 import { Modal } from '../../components/Modal';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Student } from '../../types';
-import { Plus, Pencil, Trash2, Eye, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
+import { DEPARTMENTS, SEMESTERS, SECTIONS, BATCHES, GENDERS } from '../../constants';
 
 const BLANK: Omit<Student, 'id'> = {
-  name: '', email: '', rollNo: '', phone: '', department: 'Computer Science',
-  semester: 1, section: 'A', batch: '2024-28', dob: '', gender: 'Male',
+  name: '', email: '', rollNo: '', phone: '', department: 'Computer Science & Engineering',
+  semester: 1, section: 'A', batch: '2024-2028', dob: '', gender: 'Male',
   address: '', parentName: '', parentPhone: '',
 };
 
 const PAGE_SIZE = 8;
 
 export function AdminStudents() {
-  const { state, addStudent, updateStudent, deleteStudent } = useMockDB();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<keyof Student>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -26,15 +29,59 @@ export function AdminStudents() {
   const [form, setForm] = useState<Omit<Student, 'id'>>(BLANK);
   const [newCredentials, setNewCredentials] = useState<{email: string, password: string, id: string} | null>(null);
 
+  const { data: students = [], isLoading: loadingStudents } = useQuery({
+    queryKey: ['adminStudents'],
+    queryFn: () => studentService.getStudents()
+  });
+
+
+  const createMutation = useMutation({
+    mutationFn: (newStudent: any) => studentService.createStudent(newStudent),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['adminStudents'] });
+      setNewCredentials({
+        email: data.email,
+        password: 'student123',
+        id: data.id,
+      });
+      setModal(null);
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (updatedStudent: any) => {
+      const { id, ...data } = updatedStudent;
+      return studentService.updateStudent(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminStudents'] });
+      setModal(null);
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => studentService.deleteStudent(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminStudents'] });
+    }
+  });
+
+
+
   const sorted = useMemo(() => {
     const q = search.toLowerCase();
-    return [...state.students]
-      .filter(s => s.name.toLowerCase().includes(q) || s.rollNo.toLowerCase().includes(q) || s.department.toLowerCase().includes(q) || s.email.toLowerCase().includes(q))
+    return [...students]
+      .filter((s: any) => 
+        (s.name || '').toLowerCase().includes(q) || 
+        (s.rollNo || s.roll_no || '').toLowerCase().includes(q) || 
+        (s.department || '').toLowerCase().includes(q) || 
+        (s.email || s.user?.email || '').toLowerCase().includes(q)
+      )
       .sort((a, b) => {
         const av = String(a[sortKey] ?? ''), bv = String(b[sortKey] ?? '');
         return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
       });
-  }, [state.students, search, sortKey, sortDir]);
+  }, [students, search, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -48,31 +95,50 @@ export function AdminStudents() {
     : null;
 
   const openAdd = () => { setForm(BLANK); setModal('add'); };
-  const openEdit = (s: Student) => { setSelected(s); setForm({ ...s }); setModal('edit'); };
-  const openView = (s: Student) => { setSelected(s); setModal('view'); };
+  const openEdit = (s: any) => { 
+    setSelected(s); 
+    setForm({ 
+      name: s.name, 
+      email: s.email || s.user?.email || '', 
+      rollNo: s.rollNo || s.roll_no || '', 
+      phone: s.phone || '', 
+      department: s.department || 'Computer Science & Engineering', 
+      semester: Number(s.semester) || 1, 
+      section: s.section || 'A', 
+      batch: s.batch || '2024-28', 
+      dob: s.dob || '', 
+      gender: s.gender || 'Male', 
+      address: s.address || '', 
+      parentName: s.parentName || s.parent_name || '', 
+      parentPhone: s.parentPhone || s.parent_phone || ''
+    }); 
+    setModal('edit'); 
+  };
+  const openView = (s: any) => { setSelected(s); setModal('view'); };
 
   const handleSave = () => {
     if (modal === 'add') {
-      const generatedId = 'S' + Math.random().toString(36).slice(2, 8).toUpperCase();
-      const generatedPassword = Math.random().toString(36).slice(2, 10);
-      const email = form.email || `${form.name.split(' ')[0].toLowerCase()}.${generatedId.toLowerCase()}@sis.edu`;
-      
-      const newStudent = { ...form, email };
-      addStudent(newStudent, generatedId, generatedPassword);
-      setNewCredentials({ email, password: generatedPassword, id: generatedId });
+      createMutation.mutate(form);
     }
     else if (modal === 'edit' && selected) {
-      updateStudent({ ...form, id: selected.id });
+      updateMutation.mutate({ ...form, id: selected.id || (selected as any).user_id });
     }
-    setModal(null);
   };
+
+  if (loadingStudents) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-rose-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="page-header">
         <div>
           <h1 className="page-title">Student Management</h1>
-          <p className="page-subtitle">View, add, edit, or remove students ({state.students.length} total)</p>
+          <p className="page-subtitle">View, add, edit, or remove students ({students.length} total)</p>
         </div>
         <div className="flex items-center gap-3">
           <SearchBar value={search} onChange={v => { setSearch(v); setPage(1); }} placeholder="Search students..." />
@@ -95,21 +161,21 @@ export function AdminStudents() {
             <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
               {paged.length === 0 ? (
                 <tr><td colSpan={5} className="text-center py-10 text-slate-400">No students found</td></tr>
-              ) : paged.map(s => (
-                <tr key={s.id} className="table-row">
+              ) : paged.map((s: any) => (
+                <tr key={s.id || s.user_id} className="table-row">
                   <td className="table-cell">
                     <div className="flex items-center gap-3">
                       {s.avatar
                         ? <img src={s.avatar} className="h-8 w-8 rounded-full object-cover" alt={s.name} />
-                        : <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-sm font-semibold text-indigo-700 dark:text-indigo-300">{s.name.charAt(0)}</div>
+                        : <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-sm font-semibold text-indigo-700 dark:text-indigo-300">{s.name?.charAt(0)}</div>
                       }
                       <div>
                         <p className="font-medium text-slate-800 dark:text-slate-200">{s.name}</p>
-                        <p className="text-xs text-slate-400">{s.email}</p>
+                        <p className="text-xs text-slate-400">{s.email || s.user?.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="table-cell font-mono">{s.rollNo}</td>
+                  <td className="table-cell font-mono">{s.rollNo || s.roll_no}</td>
                   <td className="table-cell">{s.department}</td>
                   <td className="table-cell">Sem {s.semester} / {s.section}</td>
                   <td className="table-cell">
@@ -137,27 +203,42 @@ export function AdminStudents() {
 
       {/* Add/Edit Modal */}
       <Modal open={modal === 'add' || modal === 'edit'} onClose={() => setModal(null)} title={modal === 'add' ? 'Add New Student' : 'Edit Student'} size="lg"
-        footer={<><button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn-primary" onClick={handleSave}>{modal === 'add' ? 'Add Student' : 'Save Changes'}</button></>}
+        footer={<><button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn-primary" disabled={createMutation.isPending || updateMutation.isPending} onClick={handleSave}>{modal === 'add' ? (createMutation.isPending ? 'Adding...' : 'Add Student') : 'Save Changes'}</button></>}
       >
         <div className="grid grid-cols-2 gap-4">
           <div><label className="label">Full Name</label><input className="input" value={form.name} onChange={e => setForm({...form, name: e.target.value})} required /></div>
-          <div><label className="label">Email Address (Optional)</label><input type="email" className="input" placeholder="Leave blank to auto-generate" value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
+          <div><label className="label">Email</label><input type="email" className="input" value={form.email} onChange={e => setForm({...form, email: e.target.value})} required /></div>
           <div><label className="label">Roll Number</label><input className="input" value={form.rollNo} onChange={e => setForm({...form, rollNo: e.target.value})} required /></div>
           <div><label className="label">Phone</label><input className="input" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
           <div>
             <label className="label">Department</label>
             <select className="input" value={form.department} onChange={e => setForm({...form, department: e.target.value})}>
-              {[...new Set(state.departments.map(d => d.name))].map(d => <option key={d}>{d}</option>)}
+              {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
             </select>
           </div>
-          <div><label className="label">Semester</label><input type="number" min={1} max={8} className="input" value={form.semester} onChange={e => setForm({...form, semester: +e.target.value})} /></div>
-          <div><label className="label">Section</label><input className="input" value={form.section} onChange={e => setForm({...form, section: e.target.value})} /></div>
-          <div><label className="label">Batch</label><input className="input" value={form.batch} onChange={e => setForm({...form, batch: e.target.value})} /></div>
+          <div>
+            <label className="label">Semester</label>
+            <select className="input" value={form.semester} onChange={e => setForm({...form, semester: +e.target.value})}>
+              {SEMESTERS.map(s => <option key={s} value={s}>Semester {s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Section</label>
+            <select className="input" value={form.section} onChange={e => setForm({...form, section: e.target.value})}>
+              {SECTIONS.map(s => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Batch</label>
+            <select className="input" value={form.batch} onChange={e => setForm({...form, batch: e.target.value})}>
+              {BATCHES.map(b => <option key={b}>{b}</option>)}
+            </select>
+          </div>
           <div><label className="label">Date of Birth</label><input type="date" className="input" value={form.dob} onChange={e => setForm({...form, dob: e.target.value})} /></div>
           <div>
             <label className="label">Gender</label>
             <select className="input" value={form.gender} onChange={e => setForm({...form, gender: e.target.value})}>
-              <option>Male</option><option>Female</option><option>Other</option>
+              {GENDERS.map(g => <option key={g}>{g}</option>)}
             </select>
           </div>
           <div className="col-span-2"><label className="label">Address</label><input className="input" value={form.address} onChange={e => setForm({...form, address: e.target.value})} /></div>
@@ -172,7 +253,21 @@ export function AdminStudents() {
       >
         {selected && (
           <div className="grid grid-cols-2 gap-4 text-sm">
-            {([['Name', selected.name], ['Roll No', selected.rollNo], ['Email', selected.email], ['Phone', selected.phone], ['Department', selected.department], ['Semester', `Sem ${selected.semester}`], ['Section', selected.section], ['Batch', selected.batch], ['DOB', selected.dob], ['Gender', selected.gender], ['Address', selected.address], ['Parent', selected.parentName], ['Parent Phone', selected.parentPhone]] as [string,string][]).map(([k,v]) => (
+            {([
+              ['Name', selected.name], 
+              ['Roll No', selected.rollNo || (selected as any).roll_no], 
+              ['Email', selected.email || (selected as any).user?.email], 
+              ['Phone', selected.phone], 
+              ['Department', selected.department], 
+              ['Semester', `Sem ${selected.semester}`], 
+              ['Section', selected.section], 
+              ['Batch', selected.batch], 
+              ['DOB', selected.dob], 
+              ['Gender', selected.gender], 
+              ['Address', selected.address], 
+              ['Parent', selected.parentName || (selected as any).parent_name], 
+              ['Parent Phone', selected.parentPhone || (selected as any).parent_phone]
+            ] as [string,string][]).map(([k,v]) => (
               <div key={k}>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{k}</p>
                 <p className="text-slate-800 dark:text-slate-200 font-medium">{v || '—'}</p>
@@ -188,9 +283,10 @@ export function AdminStudents() {
         title="Delete Student"
         message={`Are you sure you want to delete "${confirmDelete?.name}"? This action cannot be undone.`}
         confirmLabel="Delete"
-        onConfirm={() => { deleteStudent(confirmDelete!.id); setConfirmDelete(null); }}
+        onConfirm={() => { deleteMutation.mutate(confirmDelete?.id || (confirmDelete as any)?.user_id); setConfirmDelete(null); }}
         onClose={() => setConfirmDelete(null)}
       />
+
 
       {/* Success Dialog */}
       <Modal open={!!newCredentials} onClose={() => setNewCredentials(null)} title="Student Account Created" size="md"
@@ -204,11 +300,7 @@ export function AdminStudents() {
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-3 font-mono text-sm">
           <div className="flex justify-between items-center">
-            <span className="text-slate-500">Student ID:</span>
-            <span className="font-semibold text-slate-800 dark:text-slate-200">{newCredentials?.id}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Email/Username:</span>
+            <span className="text-slate-500">Username / Email:</span>
             <span className="font-semibold text-slate-800 dark:text-slate-200">{newCredentials?.email}</span>
           </div>
           <div className="flex justify-between items-center">
